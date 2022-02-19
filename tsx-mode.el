@@ -11,7 +11,6 @@
     (modify-syntax-entry ?$ "_" table)
     table))
 
-;;;###autoload
 (define-derived-mode
     tsx-mode prog-mode "TSX"
     "A batteries-included major mode for modern webapps."
@@ -26,9 +25,5 @@
     (setq tree-sitter-hl-default-patterns (tree-sitter-langs--hl-default-patterns 'tsx))
     (tree-sitter-hl-mode)
     (tsi-typescript-mode))
-
-;;;###autoload
-(add-to-list 'tree-sitter-major-mode-language-alist '(tsx-mode . tsx))
-
 
 (provide 'tsx-mode)
