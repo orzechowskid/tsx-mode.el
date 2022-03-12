@@ -1,3 +1,25 @@
+;; (add-to-list 'load-path "~/.emacs.d/lisp/")
+;; (setq straight-check-for-modifications '(check-on-save find-when-checking))
+;; (setq straight-vc-git-default-clone-depth 1)
+;; (defvar bootstrap-version)
+;; (let ((bootstrap-file
+;;        (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+;;       (bootstrap-version 5))
+;;   (unless (file-exists-p bootstrap-file)
+;;     (with-current-buffer
+;;         (url-retrieve-synchronously
+;;          "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+;;          'silent 'inhibit-cookies)
+;;       (goto-char (point-max))
+;;       (eval-print-last-sexp)))
+;;   (load bootstrap-file nil 'nomessage))
+;; (mapc
+;;  #'straight-use-package
+;;  '(lsp-mode
+;;    tree-sitter
+;;    tree-sitter-langs
+;;    '(tsi :type git :host github :repo "orzechowskid/tsi.el")))
+
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
 ;;; Package-Requires: ((emacs "28.1") (tsi.el "1.0.0") (tree-sitter-langs "0.11.3"))
@@ -11,9 +33,11 @@
 
 
 (require 'js)
+(require 'lsp-mode)
 (require 'tree-sitter)
 (require 'tree-sitter-hl)
 (require 'tree-sitter-langs)
+(require 'tsi)
 (require 'tsi-css)
 (require 'tsi-typescript)
 
@@ -108,7 +132,7 @@ Parse the buffer from top to bottom for each entry in the region-definition list
   (save-excursion
     (dolist (region-def tsx-mode-css-region-delimiters)
       (tsx-mode--find-css-regions region-def)))
-  (tsx-mode--debug "regions: %s" tsx-mode--css-regions))
+  (message "new list of parsed regions: %s" tsx-mode--css-regions))
 
 
 (defun tsx-mode--css-region-for-point ()
@@ -127,8 +151,8 @@ Gets the region at point (if any)."
 (defun tsx-mode--do-fontification (beg end)
   "Internal function.
 
-Perform just-in-time text propertization."
-  (tsx-mode--debug "start fontification: %d-%d" beg end)
+Perform just-in-time text propertization from BEG to END in the current buffer."
+  (message "start fontification: %d-%d" beg end)
   (tree-sitter-hl--highlight-region beg end nil)
   (when tsx-mode--current-css-region
     (tsx-mode--fontify-current-css-region))
@@ -141,28 +165,38 @@ Perform just-in-time text propertization."
   "Internal function.
 
 Farm out syntax highlighting of CSS to a separate buffer."
-  (when tsx-mode--current-css-region
-    (tsx-mode--debug "fontifying current region")
-    (let* ((beg (car tsx-mode--current-css-region))
-           (end (cdr tsx-mode--current-css-region))
-           (str (buffer-substring beg (- end 1)))
-           (fontified-text-properties-list nil))
-      ;; get fontification properties to apply by font-locking our secret buffer
-      (with-current-buffer tsx-mode--css-buffer
+  (message "fontifying current region")
+  (let* ((region tsx-mode--current-css-region)
+         (beg (max (point-min) (car region)))
+         (end (min (point-max) (cdr region)))
+         (str (buffer-substring beg (- end 1)))
+         (fontified-text-properties-list nil))
+    ;; get fontification properties to apply by font-locking our secret buffer
+    (with-current-buffer tsx-mode--css-buffer
+      ;; --fontify-current-css-region is called in the context of a post-command
+      ;; hook which means `inhibit-modification-hooks' is temporarily set to non-
+      ;; nil.  but that will prevent desirable side-effects from occurring in our
+      ;; CSS buffer so turn it off for a little while
+      (message "inserting: %d-%d" beg (- end 1))
+      (let ((inhibit-modification-hooks nil))
         (erase-buffer)
+        ;; wrap the inserted text in a dummy CSS selector.  this allows us to properly
+        ;; calculate indentation as well as get capf to return everything we want it to
         (insert (format "div{%s}" str))
-        (font-lock-fontify-buffer)
-        (setq fontified-text-properties-list (object-intervals
-                                              (buffer-substring
-                                               (+ (length "div{") 1)
-                                               (- (point-max) (length "}"))))))
-      ;; apply those fontification properties to this buffer
-      (with-silent-modifications
-        (dolist (range-with-property fontified-text-properties-list)
-          (set-text-properties
-           (+ beg (elt range-with-property 0))
-           (+ beg (elt range-with-property 1))
-           (elt range-with-property 2)))))))
+        (tree-sitter--after-change (point-min) (point-max) 0)
+        (font-lock-fontify-buffer))
+      (setq fontified-text-properties-list
+            (object-intervals
+             (buffer-substring
+              (+ (length "div{") (point-min))
+              (- (point-max) (length "}"))))))
+    ;; apply those fontification properties to this buffer
+    (with-silent-modifications
+      (dolist (range-with-property fontified-text-properties-list)
+        (set-text-properties
+         (+ beg (elt range-with-property 0))
+         (+ beg (elt range-with-property 1))
+         (elt range-with-property 2))))))
 
 
 (defun tsx-mode--post-command-hook ()
@@ -172,67 +206,130 @@ A hook function registered at `post-command-hook'."
   (tsx-mode--update-current-css-region))
 
 
+(defun tsx-mode--do-css-region-change (old-region new-region)
+  "Internal function.
+
+Runs the exit-CSS-region hook with OLD-REGION, then the enter-CSS-region hook with NEW-REGION, then returns NEW-REGION."
+  (unless (or (= (car new-region) (car old-region))
+              (= (cdr new-region) (cdr new-region)))
+    ;; don't run hooks if the region is the same but its bounds have changed
+    (message "changing css-in-js regions")
+    (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
+    (run-hook-with-args 'tsx-mode-css-enter-region-hook new-region))
+  new-region)
+
+
+(defun tsx-mode--do-css-region-enter (new-region)
+  "Internal function.
+
+Runs the enter-CSS-region hook with NEW-REGION, then returns NEW-REGION."
+  (message "entering css-in-js region")
+  (run-hook-with-args 'tsx-mode-css-enter-region-hook new-region)
+  new-region)
+
+  
+(defun tsx-mode--do-css-region-exit (old-region)
+  "Internal function.
+
+Runs the exit-CSS-region hook with OLD-REGION, then returns OLD-REGION."
+  (message "exiting css-in-js region")
+  (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
+  old-region)
+
+  
 (defun tsx-mode--update-current-css-region ()
   "Internal function.
 
 Detect changes to the current CSS-in-JS region, and update state and run hooks if necessary."
-  (let ((old-region tsx-mode--current-css-region)
-        (new-region (tsx-mode--css-region-for-point)))
-    (if new-region
-        (if old-region
-            (unless
-                (and
-                 (>= (point) (car old-region))
-                 (< (point) (cdr old-region)))
-              ;; jumping from one sub-region to another, but had to first check
-              ;; to make sure we weren't jumping from place to place inside the
-              ;; same sub-region.
-              ;; n.b. I'm almost positive the current check is insufficient
-              (save-excursion
-                (tsx-mode--debug "changing css-in-js regions")
-                (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
-                (setq tsx-mode--current-css-region new-region)
-                (run-hook-with-args 'tsx-mode-css-enter-region-hook new-region)))
-          ;; now entering a sub-region
-          (save-excursion
-            (tsx-mode--debug "entering a css-in-js region")
-            (setq tsx-mode--current-css-region new-region)
-            (run-hook-with-args 'tsx-mode-css-enter-region-hook new-region)))
-      ;; now exiting a sub-region
-      (when tsx-mode--current-css-region
-        (save-excursion
-          (tsx-mode--debug "exiting a css-in-js region")
-          (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
-          (setq tsx-mode--current-css-region nil))))))
+  (setq
+   tsx-mode--current-css-region
+   (let ((old-region tsx-mode--current-css-region)
+         (new-region (tsx-mode--css-region-for-point)))
+     (message "old: %s, new: %s" old-region new-region)
+     (cond
+       ((and old-region new-region)
+        (tsx-mode--do-css-region-change old-region new-region)
+        new-region)
+       (new-region
+        (tsx-mode--do-css-region-enter new-region)
+        new-region)
+       (old-region
+        (tsx-mode--do-css-region-exit old-region)
+        nil)
+       (t nil)))))
 
 
 (defun tsx-mode--after-change-function (beg end old-text-length)
   "Internal function.
 
 A hook function registered at `after-change-functions'."
-  (tsx-mode--css-parse-buffer))
+  (message "after change %d" (point))
+  (message "after change %s" tsx-mode--css-regions)
+  (tsx-mode--css-parse-buffer)
+  (message "after parse %s" tsx-mode--css-regions)
+  (tsx-mode--update-current-css-region)
+  (message "after update %s" tsx-mode--current-css-region)
+  (when tsx-mode--current-css-region
+    (tsx-mode--fontify-current-css-region)))
+
+
+(defun tsx-mode--indent-css-at-pos (css-buffer-pos)
+  "Internal function.
+
+Calculate indentation for line CSS-BUFFER-LINE in the CSS-in-JS buffer."
+  (tsi--indent-line-to
+   (with-current-buffer tsx-mode--css-buffer
+;     (setq-local tsi-debug t)
+     (goto-char css-buffer-pos)
+     (message "indenting: >%s<" (string (char-after)))
+     (message "amount?: %d" (tsi--walk 'tsi-css--get-indent-for))
+     (tsi--walk 'tsi-css--get-indent-for))))
+
+
+(defun tsx-mode--indent-line ()
+  "Internal function.
+
+Calculate indentation for the current line."
+  (if (< (save-excursion
+           (beginning-of-line)
+           (point))
+         (car tsx-mode--current-css-region))
+      ;; point is in region, but the line itself is not
+      (tsi-typescript--indent-line)
+    (tsx-mode--indent-css-at-pos
+     (+ 1 (length "div{") (- (point) (car tsx-mode--current-css-region))))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
   "Internal function.
 
 A hook function registered at `tsx-mode-css-enter-region-hook'."
-   (jit-lock-refontify (car new-region) (cdr new-region)))
+  (setq-local indent-line-function #'tsx-mode--indent-line)
+  (jit-lock-refontify (car new-region) (cdr new-region)))
 
 
 (defun tsx-mode--css-exit-region (old-region)
   "Internal function.
 
 A hook function registered at `tsx-mode-css-exit-region-hook'."
-   (jit-lock-refontify (car old-region) (cdr old-region)))
+  (setq-local indent-line-function #'tsi-typescript--indent-line)
+  (jit-lock-refontify (car old-region) (cdr old-region)))
 
 
 (defun tsx-mode--completion-at-point ()
   "Internal function.
 
 Proxy to either scss-mode's capf or lsp-mode's capf depending on where point is."
+  (message "tsx-mode capf with region: %s" tsx-mode--current-css-region)
   (if tsx-mode--current-css-region
-      (css-completion-at-point)
+      (let ((point-offset (+ 1
+                             (length "div{")
+                             (- (point) (car tsx-mode--current-css-region)))))
+        (with-current-buffer tsx-mode--css-buffer
+          (goto-char point-offset)
+          (message "point is at %s|%s" (string (char-before)) (string (char-after)))
+          (message "capf is %s" (css-completion-at-point))
+          (css-completion-at-point)))
     (lsp-completion-at-point)))
 
 
@@ -250,11 +347,13 @@ Perform initial setup of tsx-mode."
   (tsx-mode--css-parse-buffer)
 
   (unless tsx-mode--css-buffer
-    (tsx-mode--debug "setting up css buffer...")
+    (message "setting up css buffer...")
     (setq tsx-mode--css-buffer (get-buffer-create " *tsx-mode css*"))
     (with-current-buffer tsx-mode--css-buffer
       (scss-mode)
-      (tsi-css-mode)))
+      (tsi-css-mode)
+      (tree-sitter-hl-mode)
+      (lsp)))
 
   (jit-lock-register
    #'tsx-mode--do-fontification)
@@ -283,10 +382,7 @@ Perform initial setup of tsx-mode."
   (add-hook
    'completion-at-point-functions 
    #'tsx-mode--completion-at-point
-   nil t)
-  
-  (with-silent-modifications
-    (set-text-properties (point-min) (point-max) nil)))
+   nil t))
 
 
 ;;;###autoload
@@ -308,7 +404,8 @@ Perform initial setup of tsx-mode."
 ;;;###autoload
 (with-eval-after-load 'tree-sitter-langs
   (tree-sitter-require 'tsx)
-  (add-to-list 'tree-sitter-major-mode-language-alist '(tsx-mode . tsx)))
+  (add-to-list 'tree-sitter-major-mode-language-alist '(tsx-mode . tsx))
+  (add-to-list 'tree-sitter-major-mode-language-alist '(scss-mode . css)))
 
 
 ;;;###autoload
