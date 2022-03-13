@@ -6,7 +6,7 @@ use lsp-mode for code analysis and completion, tree-sitter for highlighting and 
 
 Screenshot:
 
-![](https://repository-images.githubusercontent.com/461083728/6f8c1ccc-1f3e-4576-a6c8-5fd3935a5ddc)
+![](https://repository-images.githubusercontent.com/461083728/1bc1d312-661c-40b9-abda-97c8e7f9e4b2)
 
 ## Installation
 
