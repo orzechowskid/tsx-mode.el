@@ -2,7 +2,14 @@
 
 use lsp-mode for code analysis and completion, tree-sitter for highlighting and indentation, and some godawful hacks for CSS-in-JS support.
 
+- TypeScript support
+- JSX/TSX has correct indentation and syntax highlighting applied
+- CSS-in-JS is dynamically propertized: looks like a string until point enters it, then switches to CSS
+- completion-at-point for CSS-in-JS
+
 ![tests?](https://github.com/orzechowskid/tsx-mode.el/actions/workflows/github-actions.yml/badge.svg?branch=main)
+
+Screenshot:
 
 ![](https://repository-images.githubusercontent.com/461083728/6f8c1ccc-1f3e-4576-a6c8-5fd3935a5ddc)
 
