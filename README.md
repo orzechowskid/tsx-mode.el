@@ -1,11 +1,6 @@
 # tsx-mode.el: a batteries-included major mode for TSX/JSX
 
-use lsp-mode for code analysis and completion, tree-sitter for highlighting and indentation, and some godawful hacks for CSS-in-JS support.
-
-- TypeScript support
-- JSX/TSX has correct indentation and syntax highlighting applied
-- CSS-in-JS is dynamically propertized: looks like a string until point enters it, then switches to CSS
-- completion-at-point for CSS-in-JS
+use lsp-mode for code analysis and completion, tree-sitter for highlighting and indentation, and some godawful hacks for CSS-in-JS support.  Aims to provide proper JSX/TSX indentation and syntax highlighting, as well as some fancy features related to CSS-in-JS.
 
 ![tests?](https://github.com/orzechowskid/tsx-mode.el/actions/workflows/github-actions.yml/badge.svg?branch=main)
 
@@ -21,9 +16,14 @@ Screenshot:
 4. Require: `(require 'tsx-mode)`
 5. Enable: `(tsx-mode t)`
 
-## Bugs
+## Bugs and limitations
 
 tons!
+
+- lsp-mode is currently the only supported LSP client.
+- TS/TSX indentation might not be quite right.  (if you notice something, please open an issue against [tsi.el](https://github.com/orzechowskid/tsi.el))
+- CSS indentation might not be quite right either.  (if you notice something, please open an issue against this repo)
+- only a couple of CSS-in-JS formats are currently supported.
 
 ## License
 
