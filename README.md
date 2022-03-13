@@ -4,6 +4,8 @@ use lsp-mode for code analysis and completion, tree-sitter for highlighting and 
 
 ![tests?](https://github.com/orzechowskid/tsx-mode.el/actions/workflows/github-actions.yml/badge.svg?branch=main)
 
+![](https://repository-images.githubusercontent.com/461083728/6f8c1ccc-1f3e-4576-a6c8-5fd3935a5ddc)
+
 ## Installation
 
 0. Dependencies: make sure you have [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/) and [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode) installed already.
