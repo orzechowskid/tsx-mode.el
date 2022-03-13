@@ -6,7 +6,7 @@
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "28.1") (tsi.el "1.0.0") (tree-sitter-langs "0.11.3"))
+;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3"))
 
 ;;; Code:
 
@@ -21,7 +21,6 @@
 (require 'tree-sitter)
 (require 'tree-sitter-hl)
 (require 'tree-sitter-langs)
-(require 'tsi)
 (require 'tsi-css)
 (require 'tsi-typescript)
 
