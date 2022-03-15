@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.0.0
+;;; Version: 1.0.1
 
 ;;; Author: Dan Orzechowski
 
@@ -13,7 +13,6 @@
 
 (unless (fboundp 'object-intervals)
   (error "Unsupported: tsx-mode.el requires Emacs 28.1+"))
-(setq debug-on-error t)
 
 
 (require 'js)
@@ -81,7 +80,7 @@ Print messages only when `tsx-mode-debug` is `t` in this buffer."
     (apply 'message args)))
 
 
-(defvar-local tsx-mode--css-buffer
+(defvar tsx-mode--css-buffer
     nil
   "Internal variable.
 
@@ -199,7 +198,6 @@ Perform syntax highlighting of CSS in a separate buffer."
   "Internal function.
 
 A hook function registered at `post-command-hook'."
-  (setq company--capf-cache nil)
   (tsx-mode--update-current-css-region))
 
 
@@ -295,7 +293,8 @@ Calculate indentation for the current line."
 
 A hook function registered at `tsx-mode-css-enter-region-hook'."
   (setq-local indent-line-function #'tsx-mode--indent-line)
-  (jit-lock-refontify (car new-region) (cdr new-region)))
+  ;; don't forget to bounds-check in case the region has shrunk due to a kill command
+  (jit-lock-refontify (min (car new-region) (point-max)) (min (cdr new-region) (point-max))))
 
 
 (defun tsx-mode--css-exit-region (old-region)
@@ -303,7 +302,8 @@ A hook function registered at `tsx-mode-css-enter-region-hook'."
 
 A hook function registered at `tsx-mode-css-exit-region-hook'."
   (setq-local indent-line-function #'tsi-typescript--indent-line)
-  (jit-lock-refontify (car old-region) (cdr old-region)))
+  ;; don't forget to bounds-check in case the region has shrunk due to a kill command
+  (jit-lock-refontify (min (car old-region) (point-max)) (min (cdr old-region) (point-max))))
 
 
 (defun tsx-mode--completion-at-point ()
@@ -343,18 +343,20 @@ Delegate to either css-mode's capf or lsp-mode's capf depending on where point i
                     ;; dollar signs are allowed in symbol names
                     (modify-syntax-entry ?$ "_" table)
                     table)
-    (tsi-typescript-mode)
-    (tree-sitter-hl-mode)
+    (setq-local comment-start "// ")
+    (setq-local comment-end "")
     ;; re-use the existing TS[X] language data shipped with tree-sitter
     (setq tree-sitter-hl-default-patterns
           (tree-sitter-langs--hl-default-patterns 'tsx))
 
+    (tsi-typescript-mode)
+    (tree-sitter-hl-mode)
     (tsx-mode--css-parse-buffer)
 
-    (unless (gethash 'ts-ls lsp-clients)
-      (message "installing ts-ls langserver...")
-      (lsp-install-server nil 'ts-ls))
-    ;; TODO: would a CSS langserver be useful here?
+    ;; (unless (gethash 'ts-ls lsp-clients)
+    ;;   (message "installing ts-ls langserver...")
+    ;;   (lsp-install-server nil 'ts-ls))
+    ;; ;; TODO: would a CSS langserver be useful here?
 
     (lsp)
 
