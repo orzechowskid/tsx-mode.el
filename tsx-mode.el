@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.2.1
+;;; Version: 1.2.2
 
 ;;; Author: Dan Orzechowski
 
@@ -38,19 +38,21 @@
   (add-to-list 'origami-parser-alist '(tsx-mode . tsx-mode--origami-parser)))
 
 
-
 (defvar tsx-mode-css-region-delimiters
-  '((
-     ;; styled-components, emotion, etc.
+  '((;; styled-components, emotion, etc.
      :start "\\(styled\\|css\\)[.()<>[:alnum:]]?+`"
      :start-offset 0
      :end "`;"
      :end-offset -1)
-    (
-     ;; styled-jsx
+    (;; styled-jsx
      :start "<style jsx[[:blank:][:alnum:]]?+>{`"
      :start-offset 0
      :end "`}"
+     :end-offset -1)
+    (;; astroturf
+     :start "stylesheet`"
+     :start-offset 0
+     :end "`;"
      :end-offset -1))
   "A list of information defining CSS-in-JS regions.
 
@@ -417,10 +419,17 @@ Parser for origami.el code folding.  Must return a list of fold nodes, where eac
      'tsx-mode-css-enter-region-hook
      #'tsx-mode--css-enter-region
      nil t)
+
+    ;; lsp-completion-mode does some weird stuff to `completion-at-point-functions' which we have
+    ;; to work around by ensuring our hook runs after that mode's configure hook runs
     (add-hook
-     'completion-at-point-functions
-     #'tsx-mode--completion-at-point
-     nil t))
+     'lsp-configure-hook
+     (lambda ()
+       (add-hook
+        'completion-at-point-functions
+        #'tsx-mode--completion-at-point
+        nil t))
+     100 t))
 
 
 (provide 'tsx-mode)
