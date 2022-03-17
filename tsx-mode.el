@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.1.0
+;;; Version: 1.2.0
 
 ;;; Author: Dan Orzechowski
 
