@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.2.0
+;;; Version: 1.2.1
 
 ;;; Author: Dan Orzechowski
 
@@ -34,6 +34,9 @@
   (add-to-list
    'lsp-language-id-configuration
    '(tsx-mode . "typescript")))
+(with-eval-after-load 'origami
+  (add-to-list 'origami-parser-alist '(tsx-mode . tsx-mode--origami-parser)))
+
 
 
 (defvar tsx-mode-css-region-delimiters
@@ -371,8 +374,6 @@ Parser for origami.el code folding.  Must return a list of fold nodes, where eac
     ;; re-use the existing TS[X] language data shipped with tree-sitter
     (setq tree-sitter-hl-default-patterns
           (tree-sitter-langs--hl-default-patterns 'tsx))
-    ;; tell origami-mode to use our own parser
-    (add-to-list 'origami-parser-alist '(tsx-mode . tsx-mode--origami-parser))
 
     (tsi-typescript-mode)
     (tree-sitter-hl-mode)
