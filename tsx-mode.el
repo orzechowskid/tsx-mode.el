@@ -17,6 +17,8 @@
 
 (require 'js)
 (require 'lsp-mode)
+(require 'origami)
+(require 'seq)
 (require 'tree-sitter)
 (require 'tree-sitter-hl)
 (require 'tree-sitter-langs)
@@ -331,6 +333,21 @@ Delegate to either css-mode's capf or lsp-mode's capf depending on where point i
     (lsp-completion-at-point)))
 
 
+(defun tsx-mode--origami-parser (create)
+  "Internal function.
+
+Parser for origami.el code folding.  Must return a list of fold nodes, where each fold node is created by invoking CREATE."
+  (lambda (content)
+    ;; assume `content` is equal to the current buffer contents, so we can
+    ;; re-use our existing list of CSS-in-JS regions.  is that safe?  dunno!
+    (mapcar
+     (lambda (el)
+       ;; TODO: this -1 offset might need to be specific to a given region type
+       ;; (e.g. styled-components)
+       (funcall create (car el) (cdr el) -1 nil))
+     tsx-mode--css-regions)))
+
+
 ;;;###autoload
 (define-derived-mode 
     tsx-mode prog-mode "TSX"
@@ -345,9 +362,15 @@ Delegate to either css-mode's capf or lsp-mode's capf depending on where point i
                     table)
     (setq-local comment-start "// ")
     (setq-local comment-end "")
+    (define-key tsx-mode-map
+        (kbd "C-c t f") #'origami-toggle-node)
+    (define-key tsx-mode-map
+        (kbd "C-c t F") #'origami-toggle-all-nodes)
     ;; re-use the existing TS[X] language data shipped with tree-sitter
     (setq tree-sitter-hl-default-patterns
           (tree-sitter-langs--hl-default-patterns 'tsx))
+    ;; tell origami-mode to use our own parser
+    (add-to-list 'origami-parser-alist '(tsx-mode . tsx-mode--origami-parser))
 
     (tsi-typescript-mode)
     (tree-sitter-hl-mode)
