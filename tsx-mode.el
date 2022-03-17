@@ -6,7 +6,7 @@
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3"))
+;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (origami "1.0"))
 
 ;;; Code:
 
@@ -363,6 +363,8 @@ Parser for origami.el code folding.  Must return a list of fold nodes, where eac
     (setq-local comment-start "// ")
     (setq-local comment-end "")
     (define-key tsx-mode-map
+        ;; TODO: proxy origami-toggle-node so that the node can be toggled from
+        ;; anywhere on the current line
         (kbd "C-c t f") #'origami-toggle-node)
     (define-key tsx-mode-map
         (kbd "C-c t F") #'origami-toggle-all-nodes)
