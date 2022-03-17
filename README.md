@@ -10,7 +10,7 @@ Screenshot:
 
 ## Installation
 
-0. Dependencies: make sure you have [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/), [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode), and [origami.el](https://github.com/gregsexton/origami.el) installed already.
+0. Dependencies: make sure you have [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/), [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode), and [`origami.el`](https://github.com/gregsexton/origami.el) installed already.
 1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
   or install this repository via `straight.el` which does these things for you: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 4. Require: `(require 'tsx-mode)`
