@@ -16,6 +16,15 @@ Screenshot:
 4. Require: `(require 'tsx-mode)`
 5. Enable: `(tsx-mode t)`
 
+## Keybindings
+
+all tsx-mode keybindings live under the `C-c t` prefix.
+
+| Binding   | Command                                          |
+| --        | --                                               |
+| `C-c t f` | toggle code-folding for current CSS-in-JS region |
+| `C-c t F` | toggle code-folding for all CSS-in-JS regions    |
+
 ## Bugs and limitations
 
 tons!

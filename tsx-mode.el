@@ -374,6 +374,7 @@ Parser for origami.el code folding.  Must return a list of fold nodes, where eac
 
     (tsi-typescript-mode)
     (tree-sitter-hl-mode)
+    (origami-mode)
     (tsx-mode--css-parse-buffer)
 
     (lsp-ensure-server 'ts-ls)
