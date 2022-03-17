@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.0.1
+;;; Version: 1.1.0
 
 ;;; Author: Dan Orzechowski
 
@@ -353,10 +353,8 @@ Delegate to either css-mode's capf or lsp-mode's capf depending on where point i
     (tree-sitter-hl-mode)
     (tsx-mode--css-parse-buffer)
 
-    ;; (unless (gethash 'ts-ls lsp-clients)
-    ;;   (message "installing ts-ls langserver...")
-    ;;   (lsp-install-server nil 'ts-ls))
-    ;; ;; TODO: would a CSS langserver be useful here?
+    (lsp-ensure-server 'ts-ls)
+    ;; TODO: would a CSS langserver be useful here?
 
     (lsp)
 
