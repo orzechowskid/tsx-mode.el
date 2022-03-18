@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
 
-;;; Version: 1.2.2
+;;; Version: 1.3.0
 
 ;;; Author: Dan Orzechowski
 
@@ -15,27 +15,21 @@
   (error "Unsupported: tsx-mode.el requires Emacs 28.1+"))
 
 
+(require 'css-mode)
 (require 'js)
-(require 'lsp-mode)
-(require 'origami)
 (require 'seq)
+
+(require 'lsp)
+(require 'lsp-completion)
+;; origami depends on some now-deprecated cl functions and there's not much we
+;; can do about that
+(let ((byte-compile-warnings '((not cl-functions))))
+  (require 'origami))
 (require 'tree-sitter)
 (require 'tree-sitter-hl)
 (require 'tree-sitter-langs)
 (require 'tsi-css)
 (require 'tsi-typescript)
-
-
-(with-eval-after-load 'tree-sitter-langs
-  (tree-sitter-require 'tsx)
-  (add-to-list 'tree-sitter-major-mode-language-alist '(tsx-mode . tsx))
-  (add-to-list 'tree-sitter-major-mode-language-alist '(scss-mode . css)))
-(with-eval-after-load 'lsp-mode
-  (add-to-list
-   'lsp-language-id-configuration
-   '(tsx-mode . "typescript")))
-(with-eval-after-load 'origami
-  (add-to-list 'origami-parser-alist '(tsx-mode . tsx-mode--origami-parser)))
 
 
 (defvar tsx-mode-css-region-delimiters
@@ -58,10 +52,13 @@
 
 Each CSS-in-JS mode definition is a plist containing the following properties:
 
-:start - a string defining a regular expression for finding the beginning of a region
-:start-offset - a number defining the offset from the end of :start at which the region should begin
+:start - a string defining a regular expression for finding the beginning of a
+         region
+:start-offset - a number defining the offset from the end of :start at which the
+                region should begin
 :end - a string defining a regular expression for finding the end of a region
-:end-offset - a number defining the offset from the end of :end at which the region should end.")
+:end-offset - a number defining the offset from the end of :end at which the
+               region should end.")
 
 
 (defvar-local tsx-mode-css-enter-region-hook
@@ -76,7 +73,8 @@ Each CSS-in-JS mode definition is a plist containing the following properties:
 
 (defvar-local tsx-mode-debug
     nil
-  "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed to *Messages*.")
+  "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
+to *Messages*.")
 
 
 (defun tsx-mode--debug (&rest args)
@@ -111,7 +109,8 @@ List of all CSS-in-JS regions in this buffer.")
 (defun tsx-mode--find-css-regions (region-def)
   "Internal function.
 
-Find CSS-in-JS regions defined by REGION-DEF and adds them to `tsx-mode--css-regions."
+Find CSS-in-JS regions defined by REGION-DEF and adds them to the
+`tsx-mode--css-regions' variable."
   (save-excursion
     (goto-char (point-min))
     (while
@@ -133,7 +132,8 @@ Find CSS-in-JS regions defined by REGION-DEF and adds them to `tsx-mode--css-reg
 (defun tsx-mode--css-parse-buffer ()
   "Internal function.
 
-Parse the buffer from top to bottom for each entry in the region-definition list."
+Parse the buffer from top to bottom for each entry in the region-definition
+list."
   (setq tsx-mode--css-regions '())
   (dolist (region-def tsx-mode-css-region-delimiters)
     (tsx-mode--find-css-regions region-def))
@@ -182,11 +182,12 @@ Perform syntax highlighting of CSS in a separate buffer."
       ;; CSS buffer so turn it off for a little while
       (let ((inhibit-modification-hooks nil))
         (erase-buffer)
-        ;; wrap the inserted text in a dummy CSS selector.  this allows us to properly
-        ;; calculate indentation as well as get capf to return everything we want it to
+        ;; wrap the inserted text in a dummy CSS selector.  this allows us to
+        ;; properly calculate indentation as well as get capf to return
+        ;; everything we want it to
         (insert (format "div{%s}" str))
         (tree-sitter--after-change (point-min) (point-max) 0)
-        (font-lock-fontify-buffer))
+        (font-lock-ensure (point-min) (point-max)))
       (setq fontified-text-properties-list
             (object-intervals
              (buffer-substring
@@ -211,7 +212,8 @@ A hook function registered at `post-command-hook'."
 (defun tsx-mode--do-css-region-change (old-region new-region)
   "Internal function.
 
-Run the exit-CSS-region hook with OLD-REGION, then the enter-CSS-region hook with NEW-REGION, then returns NEW-REGION."
+Run the exit-CSS-region hook with OLD-REGION, then the enter-CSS-region hook
+with NEW-REGION, then returns NEW-REGION."
   (unless (or (= (car new-region) (car old-region))
               (= (cdr new-region) (cdr new-region)))
     ;; don't run hooks if the region is the same but its bounds have changed
@@ -242,7 +244,8 @@ Run the exit-CSS-region hook with OLD-REGION, then returns OLD-REGION."
 (defun tsx-mode--update-current-css-region ()
   "Internal function.
 
-Detect changes to the current CSS-in-JS region, and update state and run hooks if necessary."
+Detect changes to the current CSS-in-JS region, and update state and run hooks
+if necessary."
   (setq
    tsx-mode--current-css-region
    (let ((old-region tsx-mode--current-css-region)
@@ -299,8 +302,8 @@ Calculate indentation for the current line."
   "Internal function.
 
 A hook function registered at `tsx-mode-css-enter-region-hook'."
-  (setq-local indent-line-function #'tsx-mode--indent-line)
-  ;; don't forget to bounds-check in case the region has shrunk due to a kill command
+  (setq-local indent-line-function 'tsx-mode--indent-line)
+  ;; don't forget to bounds-check in case the region has shrunk due to a kill
   (jit-lock-refontify (min (car new-region) (point-max)) (min (cdr new-region) (point-max))))
 
 
@@ -308,15 +311,16 @@ A hook function registered at `tsx-mode-css-enter-region-hook'."
   "Internal function.
 
 A hook function registered at `tsx-mode-css-exit-region-hook'."
-  (setq-local indent-line-function #'tsi-typescript--indent-line)
-  ;; don't forget to bounds-check in case the region has shrunk due to a kill command
+  (setq-local indent-line-function 'tsi-typescript--indent-line)
+  ;; don't forget to bounds-check in case the region has shrunk due to a kill
   (jit-lock-refontify (min (car old-region) (point-max)) (min (cdr old-region) (point-max))))
 
 
 (defun tsx-mode--completion-at-point ()
   "Internal function.
 
-Delegate to either css-mode's capf or lsp-mode's capf depending on where point is."
+Delegate to either css-mode's capf or lsp-mode's capf depending on where point
+is."
   (if tsx-mode--current-css-region
       (let* ((point-offset (+ 1
                               (length "div{")
@@ -341,16 +345,80 @@ Delegate to either css-mode's capf or lsp-mode's capf depending on where point i
 (defun tsx-mode--origami-parser (create)
   "Internal function.
 
-Parser for origami.el code folding.  Must return a list of fold nodes, where each fold node is created by invoking CREATE."
+Parser for origami.el code folding.  Must return a list of fold nodes, where
+each fold node is created by invoking CREATE."
   (lambda (content)
-    ;; assume `content` is equal to the current buffer contents, so we can
-    ;; re-use our existing list of CSS-in-JS regions.  is that safe?  dunno!
+    ;; assume `content` is equal to the current buffer contents, so we can re-
+    ;; use our existing list of CSS-in-JS regions.  is that safe?  dunno!
     (mapcar
      (lambda (el)
        ;; TODO: this -1 offset might need to be specific to a given region type
        ;; (e.g. styled-components)
        (funcall create (car el) (cdr el) -1 nil))
      tsx-mode--css-regions)))
+
+
+(defun tsx-mode--setup-buffer ()
+  "Internal function.
+
+Hook to be called to finish configuring the current buffer after lsp-mode has
+been enabled."
+  ;; set up tree-sitter and related
+  (tree-sitter-require 'tsx)
+  (add-to-list
+   'tree-sitter-major-mode-language-alist
+   '(tsx-mode . tsx))
+  (add-to-list
+   'tree-sitter-major-mode-language-alist
+   '(scss-mode . css))
+  (setq tree-sitter-hl-default-patterns
+        (tree-sitter-langs--hl-default-patterns 'tsx))
+  (tsi-typescript-mode)
+  (tree-sitter-hl-mode)
+  ;; set up the CSS-in-JS hidden buffer
+  (unless tsx-mode--css-buffer
+    (tsx-mode--debug "setting up css buffer...")
+    (setq tsx-mode--css-buffer
+          (get-buffer-create " *tsx-mode css*"))
+    (with-current-buffer tsx-mode--css-buffer
+      (scss-mode)
+      ;; scss-mode's native highlighting is nicer-looking than tree-sitter's
+      ;;      (tree-sitter-hl-mode)
+      (tsi-css-mode)))
+  ;; set up code-folding
+  (origami-mode t)
+  (add-to-list
+   'origami-parser-alist
+   '(tsx-mode . tsx-mode--origami-parser))
+
+  (tsx-mode--css-parse-buffer)
+
+  (jit-lock-register
+   'tsx-mode--do-fontification)
+  (add-hook
+   'post-command-hook
+   'tsx-mode--post-command-hook
+   nil t)
+  (add-hook
+   'after-change-functions
+   'tsx-mode--after-change-function
+   nil t)
+  (add-hook
+   'jit-lock-functions
+   'tsx-mode--do-fontification
+   nil t)
+  (add-hook
+   'tsx-mode-css-exit-region-hook
+   'tsx-mode--css-exit-region
+   nil t)
+  (add-hook
+   'tsx-mode-css-enter-region-hook
+   'tsx-mode--css-enter-region
+   nil t)
+  (add-hook
+   'completion-at-point-functions
+   'tsx-mode--completion-at-point
+   nil t))
 
 
 ;;;###autoload
@@ -365,71 +433,25 @@ Parser for origami.el code folding.  Must return a list of fold nodes, where eac
                     ;; dollar signs are allowed in symbol names
                     (modify-syntax-entry ?$ "_" table)
                     table)
+
     (setq-local comment-start "// ")
     (setq-local comment-end "")
     (define-key tsx-mode-map
         ;; TODO: proxy origami-toggle-node so that the node can be toggled from
         ;; anywhere on the current line
-        (kbd "C-c t f") #'origami-toggle-node)
+        (kbd "C-c t f") 'origami-toggle-node)
     (define-key tsx-mode-map
-        (kbd "C-c t F") #'origami-toggle-all-nodes)
-    ;; re-use the existing TS[X] language data shipped with tree-sitter
-    (setq tree-sitter-hl-default-patterns
-          (tree-sitter-langs--hl-default-patterns 'tsx))
+        (kbd "C-c t F") 'origami-toggle-all-nodes)
 
-    (tsi-typescript-mode)
-    (tree-sitter-hl-mode)
-    (origami-mode)
-    (tsx-mode--css-parse-buffer)
-
-    (lsp-ensure-server 'ts-ls)
-    ;; TODO: would a CSS langserver be useful here?
-
-    (lsp)
-
-    (unless tsx-mode--css-buffer
-      (message "setting up css buffer...")
-      (setq tsx-mode--css-buffer (get-buffer-create " *tsx-mode css*"))
-      (with-current-buffer tsx-mode--css-buffer
-        (scss-mode)
-        ;; use scss-mode's native highlighting since tree-sitter's does not look good
-        ;;      (tree-sitter-hl-mode)
-        (tsi-css-mode)))
-
-    (jit-lock-register
-     #'tsx-mode--do-fontification)
-
-    (add-hook
-     'post-command-hook
-     #'tsx-mode--post-command-hook
-     nil t)
-    (add-hook
-     'after-change-functions
-     #'tsx-mode--after-change-function
-     nil t)
-    (add-hook
-     'jit-lock-functions
-     #'tsx-mode--do-fontification
-     nil t)
-    (add-hook
-     'tsx-mode-css-exit-region-hook
-     #'tsx-mode--css-exit-region
-     nil t)
-    (add-hook
-     'tsx-mode-css-enter-region-hook
-     #'tsx-mode--css-enter-region
-     nil t)
-
-    ;; lsp-completion-mode does some weird stuff to `completion-at-point-functions' which we have
-    ;; to work around by ensuring our hook runs after that mode's configure hook runs
+    ;; configure things after lsp-mode is finished doing whatever it does
     (add-hook
      'lsp-configure-hook
-     (lambda ()
-       (add-hook
-        'completion-at-point-functions
-        #'tsx-mode--completion-at-point
-        nil t))
-     100 t))
+     'tsx-mode--setup-buffer
+     100 t)
+    (lsp-ensure-server 'ts-ls)
+    ;; TODO: would a CSS langserver be useful here?
+    (lsp)
+    (lsp-completion-mode t))
 
-
+    
 (provide 'tsx-mode)
