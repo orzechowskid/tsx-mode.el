@@ -1,4 +1,4 @@
-;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t
+;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
 ;;; Version: 1.3.0
 
@@ -6,7 +6,7 @@
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (lsp "8.0.0") (origami "1.0"))
+;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (lsp-mode "8.0.0") (origami "1.0"))
 
 ;;; Code:
 
