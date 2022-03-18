@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.3.0
+;;; Version: 1.4.0
 
 ;;; Author: Dan Orzechowski
 
@@ -47,6 +47,11 @@
      :start "stylesheet`"
      :start-offset 0
      :end "`;"
+     :end-offset -1)
+    (;; `css` react prop
+     :start "{css`"
+     :start-offset 0
+     :end "`}"
      :end-offset -1))
   "A list of information defining CSS-in-JS regions.
 
