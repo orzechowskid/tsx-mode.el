@@ -17,7 +17,7 @@ Emacs 28.1+ with the following packages installed:
  - [`origami.el`](https://github.com/gregsexton/origami.el)
 1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
   
-> or install this repository via `straight.el` which installs tsx-mode and all dependencies for you: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
+> or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 2. Require: `(require 'tsx-mode)`
 3. Enable: `(tsx-mode t)`
 
