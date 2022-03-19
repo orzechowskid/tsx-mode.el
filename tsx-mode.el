@@ -450,7 +450,7 @@ been enabled."
 
     ;; configure things after lsp-mode is finished doing whatever it does
     (add-hook
-     'lsp-configure-hook
+     'lsp-completion-mode-hook
      'tsx-mode--setup-buffer
      100 t)
     (lsp-ensure-server 'ts-ls)
