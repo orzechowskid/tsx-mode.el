@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.5.0
+;;; Version: 1.5.1
 
 ;;; Author: Dan Orzechowski
 
@@ -115,9 +115,9 @@ Plist of all CSS-in-JS regions in this buffer.")
 
 Return t if we think the CSS-in-JS region at POS is written as an inline JSX
 style prop."
-  (let* ((current-node (tree-sitter-node-at-pos :named pos))
-         (parent-node (tsc-get-parent current-node))
-         (grandparent-node (tsc-get-parent parent-node)))
+  (when-let* ((current-node (tree-sitter-node-at-pos :named pos))
+              (parent-node (tsc-get-parent current-node))
+              (grandparent-node (tsc-get-parent parent-node)))
     (and
      (eq (tsc-node-type parent-node) 'call_expression)
      (eq (tsc-node-type grandparent-node) 'jsx_expression))))
