@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.5.1
+;;; Version: 1.6.0
 
 ;;; Author: Dan Orzechowski
 
@@ -178,6 +178,22 @@ Get the region at point (if any)."
       (< (point) (plist-get elt :region-end))))
    tsx-mode--css-regions
    nil))
+
+
+(defun tsx-mode--css-region-for-line ()
+  "Internal function.
+
+Get the region beginning on, ending on, or including the line number at point
+(if any)."
+  (or
+   tsx-mode--current-css-region
+   (seq-find
+    (lambda (elt)
+      (and (>= (line-number-at-pos)
+               (line-number-at-pos (plist-get elt :region-start)))
+           (<= (line-number-at-pos)
+               (line-number-at-pos) (plist-get elt :region-end))))
+    tsx-mode--css-regions)))
 
 
 (defun tsx-mode--do-fontification (beg end)
@@ -469,6 +485,19 @@ been enabled."
    nil t))
 
 
+(defun tsx-mode-css-toggle-fold ()
+  "Toggle code-folding for the CSS-in-JS region belonging to the current line."
+  (interactive)
+  (when-let ((region-to-fold (tsx-mode--css-region-for-line)))
+    (origami-toggle-node (current-buffer) (plist-get region-to-fold :region-begin))))
+
+
+(defun tsx-mode-css-toggle-fold-all ()
+  "Toggle code-folding for all CSS-in-JS regions."
+  (interactive)
+  (origami-toggle-all-nodes (current-buffer)))
+
+
 ;;;###autoload
 (define-derived-mode 
     tsx-mode prog-mode "TSX"
@@ -487,9 +516,9 @@ been enabled."
     (define-key tsx-mode-map
         ;; TODO: proxy origami-toggle-node so that the node can be toggled from
         ;; anywhere on the current line
-        (kbd "C-c t f") 'origami-toggle-node)
+        (kbd "C-c t f") 'tsx-mode-css-toggle-fold)
     (define-key tsx-mode-map
-        (kbd "C-c t F") 'origami-toggle-all-nodes)
+        (kbd "C-c t F") 'tsx-mode-css-toggle-fold-all)
 
     ;; configure things after lsp-mode is finished doing whatever it does
     (add-hook
