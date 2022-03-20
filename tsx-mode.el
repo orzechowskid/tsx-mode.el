@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.4.0
+;;; Version: 1.5.0
 
 ;;; Author: Dan Orzechowski
 
@@ -9,7 +9,6 @@
 ;;; Package-Requires: ((emacs "28.1") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (lsp-mode "8.0.0") (origami "1.0"))
 
 ;;; Code:
-
 
 (unless (fboundp 'object-intervals)
   (error "Unsupported: tsx-mode.el requires Emacs 28.1+"))
@@ -108,41 +107,64 @@ CSS-in-JS region containing point (if any).")
     '()
   "Internal variable.
 
-List of all CSS-in-JS regions in this buffer.")
+Plist of all CSS-in-JS regions in this buffer.")
 
 
-(defun tsx-mode--find-css-regions (region-def)
+(defun tsx-mode--css-inline-style-at-pos-p (pos)
   "Internal function.
 
-Find CSS-in-JS regions defined by REGION-DEF and adds them to the
-`tsx-mode--css-regions' variable."
-  (save-excursion
-    (goto-char (point-min))
-    (while
-        (re-search-forward
-         (plist-get region-def :start)
-         nil t)
-      (let ((start-pos (point)))
-        (when
-            (re-search-forward
-             (plist-get region-def :end)
-             nil t)
-          (push
-           (cons
-            (+ start-pos (plist-get region-def :start-offset))
-            (+ (point) (plist-get region-def :end-offset)))
-           tsx-mode--css-regions))))))
+Return t if we think the CSS-in-JS region at POS is written as an inline JSX
+style prop."
+  (let* ((current-node (tree-sitter-node-at-pos :named pos))
+         (parent-node (tsc-get-parent current-node))
+         (grandparent-node (tsc-get-parent parent-node)))
+    (and
+     (eq (tsc-node-type parent-node) 'call_expression)
+     (eq (tsc-node-type grandparent-node) 'jsx_expression))))
 
 
-(defun tsx-mode--css-parse-buffer ()
+(defun tsx-mode--css-get-regions-for-def (region-def)
   "Internal function.
 
-Parse the buffer from top to bottom for each entry in the region-definition
-list."
-  (setq tsx-mode--css-regions '())
-  (dolist (region-def tsx-mode-css-region-delimiters)
-    (tsx-mode--find-css-regions region-def))
-  (tsx-mode--debug "CSS regions: %s" tsx-mode--css-regions))
+Find and return CSS-in-JS regions in this buffer defined by REGION-DEF."
+  (let ((regions-for-def '()))
+    (save-excursion
+      (goto-char (point-min))
+      (while
+          (re-search-forward
+           (plist-get region-def :start)
+           nil t)
+        (let ((start-pos (point)))
+          (when
+              (re-search-forward
+               (plist-get region-def :end)
+               nil t)
+            (push
+             (list :region-begin (+ start-pos (plist-get region-def :start-offset))
+                   :region-end (+ (point) (plist-get region-def :end-offset))
+                   :inline-style (tsx-mode--css-inline-style-at-pos-p
+                                  (+ start-pos (plist-get region-def :start-offset))))
+             regions-for-def)))))
+    regions-for-def))
+
+
+(defun tsx-mode--css-update-regions ()
+  "Internal function.
+
+Update the list of CSS-in-JS regions in the current buffer, and optionally call
+for re-fontification if things have changed a lot."
+  (let ((next-region-list
+         (apply
+          'append
+          (mapcar
+           'tsx-mode--css-get-regions-for-def
+           tsx-mode-css-region-delimiters))))
+    (tsx-mode--debug "regions: %s" next-region-list)
+    (when (not (eq (length next-region-list)
+                   (length tsx-mode--css-regions)))
+      ;; TODO: this check isn't as smart as it could be
+      (jit-lock-refontify (point-min) (point-max)))
+    (setq tsx-mode--css-regions next-region-list)))
 
 
 (defun tsx-mode--css-region-for-point ()
@@ -152,8 +174,8 @@ Get the region at point (if any)."
   (seq-find
    (lambda (elt)
      (and
-      (>= (point) (car elt))
-      (< (point) (cdr elt))))
+      (>= (point) (plist-get elt :region-begin))
+      (< (point) (plist-get elt :region-end))))
    tsx-mode--css-regions
    nil))
 
@@ -166,8 +188,8 @@ Perform just-in-time text propertization from BEG to END in the current buffer."
   (when tsx-mode--current-css-region
     (tsx-mode--fontify-current-css-region))
   `(jit-lock-bounds
-    ,(min beg (or (car tsx-mode--current-css-region) (point-max)))
-    . ,(max end (or (cdr tsx-mode--current-css-region) (point-min)))))
+    ,(min beg (or (plist-get tsx-mode--current-css-region :region-begin) (point-max)))
+    . ,(max end (or (plist-get tsx-mode--current-css-region :region-end) (point-min)))))
 
 
 (defun tsx-mode--fontify-current-css-region ()
@@ -175,8 +197,8 @@ Perform just-in-time text propertization from BEG to END in the current buffer."
 
 Perform syntax highlighting of CSS in a separate buffer."
   (let* ((region tsx-mode--current-css-region)
-         (beg (max (point-min) (car region)))
-         (end (min (point-max) (cdr region)))
+         (beg (max (point-min) (plist-get region :region-begin)))
+         (end (min (point-max) (plist-get region :region-end)))
          (str (buffer-substring beg (- end 1)))
          (fontified-text-properties-list nil))
     ;; get fontification properties to apply by font-locking our secret buffer
@@ -219,8 +241,12 @@ A hook function registered at `post-command-hook'."
 
 Run the exit-CSS-region hook with OLD-REGION, then the enter-CSS-region hook
 with NEW-REGION, then returns NEW-REGION."
-  (unless (or (= (car new-region) (car old-region))
-              (= (cdr new-region) (cdr new-region)))
+  (unless (or (=
+               (plist-get new-region :region-begin)
+               (plist-get old-region :region-begin))
+              (=
+               (plist-get new-region :region-end)
+               (plist-get new-region :region-end)))
     ;; don't run hooks if the region is the same but its bounds have changed
     (tsx-mode--debug "changing css-in-js regions")
     (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
@@ -255,6 +281,7 @@ if necessary."
    tsx-mode--current-css-region
    (let ((old-region tsx-mode--current-css-region)
          (new-region (tsx-mode--css-region-for-point)))
+     (tsx-mode--debug "old region: %s new region: %s" old-region new-region)
      (cond
        ((and old-region new-region)
         (tsx-mode--do-css-region-change old-region new-region)
@@ -272,7 +299,7 @@ if necessary."
   "Internal function.
 
 A hook function registered at `after-change-functions'."
-  (tsx-mode--css-parse-buffer)
+  (tsx-mode--css-update-regions)
   (tsx-mode--update-current-css-region)
   (when tsx-mode--current-css-region
     (tsx-mode--fontify-current-css-region)))
@@ -283,10 +310,18 @@ A hook function registered at `after-change-functions'."
 
 Calculate indentation for line CSS-BUFFER-LINE in the CSS-in-JS buffer."
   (tsi--indent-line-to
-   (with-current-buffer tsx-mode--css-buffer
-     ;;     (setq-local tsi-debug t)
-     (goto-char css-buffer-pos)
-     (tsi--walk 'tsi-css--get-indent-for))))
+   ;; if a CSS region has the :inline-style property then we want to apply
+   ;; an extra amount of indentation equal to the parent prop's indentation
+   (+
+    (with-current-buffer tsx-mode--css-buffer
+      ;;     (setq-local tsi-debug t)
+      (goto-char css-buffer-pos)
+      (tsi--walk 'tsi-css--get-indent-for))
+    (if (plist-get tsx-mode--current-css-region :inline-style)
+        (save-excursion
+          (goto-char (plist-get tsx-mode--current-css-region :region-begin))
+          (tsi--walk 'tsi-typescript--get-indent-for))
+      0))))
 
 
 (defun tsx-mode--indent-line ()
@@ -296,11 +331,11 @@ Calculate indentation for the current line."
   (if (< (save-excursion
            (beginning-of-line)
            (point))
-         (car tsx-mode--current-css-region))
+         (plist-get tsx-mode--current-css-region :region-begin))
       ;; point is in a CSS region but the line itself is not
       (tsi-typescript--indent-line)
     (tsx-mode--indent-css-at-pos
-     (+ 1 (length "div{") (- (point) (car tsx-mode--current-css-region))))))
+     (+ 1 (length "div{") (- (point) (plist-get tsx-mode--current-css-region :region-begin))))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
@@ -309,7 +344,9 @@ Calculate indentation for the current line."
 A hook function registered at `tsx-mode-css-enter-region-hook'."
   (setq-local indent-line-function 'tsx-mode--indent-line)
   ;; don't forget to bounds-check in case the region has shrunk due to a kill
-  (jit-lock-refontify (min (car new-region) (point-max)) (min (cdr new-region) (point-max))))
+  (jit-lock-refontify
+   (min (plist-get new-region :region-begin) (point-max))
+   (min (plist-get new-region :region-end) (point-max))))
 
 
 (defun tsx-mode--css-exit-region (old-region)
@@ -318,7 +355,9 @@ A hook function registered at `tsx-mode-css-enter-region-hook'."
 A hook function registered at `tsx-mode-css-exit-region-hook'."
   (setq-local indent-line-function 'tsi-typescript--indent-line)
   ;; don't forget to bounds-check in case the region has shrunk due to a kill
-  (jit-lock-refontify (min (car old-region) (point-max)) (min (cdr old-region) (point-max))))
+  (jit-lock-refontify
+   (min (plist-get old-region :region-begin) (point-max))
+   (min (plist-get old-region :region-end) (point-max))))
 
 
 (defun tsx-mode--completion-at-point ()
@@ -327,15 +366,16 @@ A hook function registered at `tsx-mode-css-exit-region-hook'."
 Delegate to either css-mode's capf or lsp-mode's capf depending on where point
 is."
   (if tsx-mode--current-css-region
-      (let* ((point-offset (+ 1
-                              (length "div{")
-                              (- (point) (car tsx-mode--current-css-region))))
+      (let* ((point-offset
+              (+ 1
+                 (length "div{")
+                 (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
              (completion
               (with-current-buffer tsx-mode--css-buffer
                 (goto-char point-offset)
                 (css-completion-at-point))))
         (if completion
-            (let ((offset (+ (car tsx-mode--current-css-region)
+            (let ((offset (+ (plist-get tsx-mode--current-css-region :region-begin)
                              (- (+ 1 (length "div{"))))))
               ;; translate css-buffer coordinates into main-buffer coordinates
               (setcar (nthcdr 1 completion)
@@ -359,7 +399,10 @@ each fold node is created by invoking CREATE."
      (lambda (el)
        ;; TODO: this -1 offset might need to be specific to a given region type
        ;; (e.g. styled-components)
-       (funcall create (car el) (cdr el) -1 nil))
+       (funcall create
+                (plist-get el :region-begin)
+                (plist-get el :region-end)
+                -1 nil))
      tsx-mode--css-regions)))
 
 
@@ -396,7 +439,7 @@ been enabled."
    'origami-parser-alist
    '(tsx-mode . tsx-mode--origami-parser))
 
-  (tsx-mode--css-parse-buffer)
+  (tsx-mode--css-update-regions)
 
   (jit-lock-register
    'tsx-mode--do-fontification)
