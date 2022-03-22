@@ -519,13 +519,18 @@ Return t if a self-closing tag is allowed to be inserted at point."
   (or
    (when-let ((current-node (tree-sitter-node-at-pos :named))
               (current-node-type (tsc-node-type current-node)))
-     (eq current-node-type 'jsx_text))
+     (or (eq current-node-type 'jsx_text)
+         (eq current-node-type 'program)))
    (save-excursion
+     (tsx-mode--debug "checking current named node %s for self-closing tag support..."
+                      (when (tree-sitter-node-at-pos :named) (tsc-node-type (tree-sitter-node-at-pos :named))))
      (re-search-backward "[^\r\n[:space:]]" nil t)
      (let* ((last-named-node (tree-sitter-node-at-pos :named))
-            (last-named-node-type (tsc-node-type last-named-node))
+            (last-named-node-type (when last-named-node (tsc-node-type last-named-node)))
             (last-anon-node (tree-sitter-node-at-pos :anonymous))
-            (last-anon-node-type (tsc-node-text last-anon-node)))
+            (last-anon-node-type (when last-anon-node (tsc-node-text last-anon-node))))
+       (tsx-mode--debug "checking named node %s and anon node %s for self-closing tag support..."
+                        last-named-node-type last-anon-node-type)
        (or (string= last-anon-node-type "=>")
            (string= last-anon-node-type "(")
            (string= last-anon-node-type "?")
@@ -560,8 +565,8 @@ instead of a plain '<' character (where it makes sense to)."
                 (goto-char (tsc-node-start-position (tree-sitter-node-at-point :named)))
                 (forward-char 1)
                 (thing-at-point 'filename)))
-             ;; don't forget about fragments
-             (str (format "></%s>" (or node-element-name ""))))
+             ;; the above will calculate the name of a fragment as "/"
+             (str (format "></%s>" (if (string= node-element-name "/") "" node-element-name))))
         (re-search-forward "/>" nil t)
         (delete-char -2)
         (insert str)
