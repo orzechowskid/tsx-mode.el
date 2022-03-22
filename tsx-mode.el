@@ -31,12 +31,19 @@
 (require 'tsi-typescript)
 
 
+(defgroup tsx-mode nil
+  "Major mode for JSX webapp files."
+  :group 'programming
+  :prefix "tsx-mode-")
+
+
 (defcustom tsx-mode-tsx-auto-tags nil
   "When set to t, typing an open angle-bracket ('<') will also insert '/>` to
 create a self-closing element tag.  Typing a close angle-bracket ('>') will, if
 point is inside a self-closing tag, turn that tag into separate opening and
 closing tags."
-  :type 'boolean)
+  :type 'boolean
+  :group 'tsx-mode)
 
 (defvar tsx-mode-css-region-delimiters
   '((;; styled-components, emotion, etc.
