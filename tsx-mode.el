@@ -564,8 +564,8 @@ instead of a plain '<' character (where it makes sense to)."
               (save-excursion
                 (goto-char (tsc-node-start-position (tree-sitter-node-at-point :named)))
                 ;; TODO: there should be a way to use [:word:] here right?
-                (re-search-forward "<\\([a-zA-Z0-9_.]+\\)" nil t)
-                (message "match data: %s" (match-data))
+                (re-search-forward "<\\([-a-zA-Z0-9$_.]+\\)" nil t)
+                (tsx-mode--debug "tag match: %s" (match-data))
                 (match-string 1)))
              ;; the above will calculate the name of a fragment as "/"
              (str (format "></%s>" (if (string= node-element-name "/") "" node-element-name))))
