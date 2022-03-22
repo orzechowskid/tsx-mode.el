@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.6.0
+;;; Version: 1.7.0
 
 ;;; Author: Dan Orzechowski
 
@@ -30,6 +30,13 @@
 (require 'tsi-css)
 (require 'tsi-typescript)
 
+
+(defcustom tsx-mode-tsx-auto-tags nil
+  "When set to t, typing an open angle-bracket ('<') will also insert '/>` to
+create a self-closing element tag.  Typing a close angle-bracket ('>') will, if
+point is inside a self-closing tag, turn that tag into separate opening and
+closing tags."
+  :type 'boolean)
 
 (defvar tsx-mode-css-region-delimiters
   '((;; styled-components, emotion, etc.
@@ -498,6 +505,79 @@ been enabled."
   (origami-toggle-all-nodes (current-buffer)))
 
 
+(defun tsx-mode--tsx-self-closing-tag-at-point-p ()
+  "Internal function.
+
+Return t if a self-closing tag is allowed to be inserted at point."
+  (or
+   (when-let ((current-node (tree-sitter-node-at-pos :named))
+              (current-node-type (tsc-node-type current-node)))
+     (eq current-node-type 'jsx_text))
+   (save-excursion
+     (re-search-backward "[^\r\n[:space:]]" nil t)
+     (let* ((last-named-node (tree-sitter-node-at-pos :named))
+            (last-named-node-type (tsc-node-type last-named-node))
+            (last-anon-node (tree-sitter-node-at-pos :anonymous))
+            (last-anon-node-type (tsc-node-text last-anon-node)))
+       (or (string= last-anon-node-type "=>")
+           (string= last-anon-node-type "(")
+           (string= last-anon-node-type "?")
+           (string= last-anon-node-type ":")
+           (string= last-anon-node-type "[")
+           (string= last-anon-node-type ",")
+           (string= last-anon-node-type "=")
+           (eq last-named-node-type 'jsx_opening_element))))))
+
+
+(defun tsx-mode-tsx-maybe-insert-self-closing-tag ()
+  "When `tsx-mode-tsx-auto-tags' is non-nil, insert a self-closing element
+instead of a plain '<' character (where it makes sense to)."
+  (interactive)
+  (if (or (bobp)
+          (and tsx-mode-tsx-auto-tags
+               (tsx-mode--tsx-self-closing-tag-at-point-p)))
+      (progn
+        (insert "</>")
+        (backward-char 2))
+    (insert "<")))
+
+
+(defun tsx-mode-tsx-maybe-close-tag ()
+  "When `tsx-mode-tsx-auto-tags' is non-nil, turn the current self-closing tag
+(if any) into a regular tag instead of inserting a plain '>' character."
+  (interactive)
+  (if (and tsx-mode-tsx-auto-tags
+           (tsx-mode--tsx-tag-convert-at-point-p))
+      (let* ((node-element-name
+              (save-excursion
+                (goto-char (tsc-node-start-position (tree-sitter-node-at-point :named)))
+                (forward-char 1)
+                (thing-at-point 'word)))
+             ;; don't forget about fragments
+             (str (format "></%s>" (or node-element-name ""))))
+        (re-search-forward "/>" nil t)
+        (delete-char -2)
+        (insert str)
+        (backward-char (- (length str) 1)))
+    (insert ">")))
+
+(defun tsx-mode--tsx-tag-convert-at-point-p ()
+  "Internal function.
+
+Return t if a self-closing tag at point can be turned into an opening tag and a
+closing tag."
+  (or
+   (when-let* ((current-named-node (tree-sitter-node-at-pos :named))
+               (current-named-node-type (tsc-node-type current-named-node)))
+     ;; self-closing tags can be turned into regular tag sets
+     (eq current-named-node-type 'jsx_self_closing_element))
+   (save-excursion
+     ;; a "</>" string inserted via `tsx-mode-auto-tags' can be turned into
+     ;; a set of JSX fragment tags
+     (backward-char 1)
+     (looking-at-p "</>"))))
+
+
 ;;;###autoload
 (define-derived-mode 
     tsx-mode prog-mode "TSX"
@@ -519,6 +599,10 @@ been enabled."
         (kbd "C-c t f") 'tsx-mode-css-toggle-fold)
     (define-key tsx-mode-map
         (kbd "C-c t F") 'tsx-mode-css-toggle-fold-all)
+    (define-key tsx-mode-map
+        (kbd "<") 'tsx-mode-tsx-maybe-insert-self-closing-tag)
+    (define-key tsx-mode-map
+        (kbd ">") 'tsx-mode-tsx-maybe-close-tag)
 
     ;; configure things after lsp-mode is finished doing whatever it does
     (add-hook
