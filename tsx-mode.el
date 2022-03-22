@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.7.0
+;;; Version: 1.7.1
 
 ;;; Author: Dan Orzechowski
 
@@ -559,7 +559,7 @@ instead of a plain '<' character (where it makes sense to)."
               (save-excursion
                 (goto-char (tsc-node-start-position (tree-sitter-node-at-point :named)))
                 (forward-char 1)
-                (thing-at-point 'word)))
+                (thing-at-point 'filename)))
              ;; don't forget about fragments
              (str (format "></%s>" (or node-element-name ""))))
         (re-search-forward "/>" nil t)
