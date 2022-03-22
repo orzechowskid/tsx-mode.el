@@ -25,10 +25,14 @@ Emacs 28.1+ with the following packages installed:
 
 all tsx-mode keybindings live under the `C-c t` prefix.
 
-| Binding   | Command                                          |
-| --        | --                                               |
-| `C-c t f` | toggle code-folding for current CSS-in-JS region |
-| `C-c t F` | toggle code-folding for all CSS-in-JS regions    |
+| Binding   | Command                                          | Function                       |
+| --        | --                                               | ---                            |
+| `C-c t f` | toggle code-folding for current CSS-in-JS region | `tsx-mode-css-toggle-fold`     |
+| `C-c t F` | toggle code-folding for all CSS-in-JS regions    | `tsx-mode-css-toggle-fold-all` |
+
+## Configuration
+
+Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
 
 ## Bugs and limitations
 
