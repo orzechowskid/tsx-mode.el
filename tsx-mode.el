@@ -678,8 +678,6 @@ been enabled."
                     table)
 
     (define-key tsx-mode-map
-        ;; TODO: proxy origami-toggle-node so that the node can be toggled from
-        ;; anywhere on the current line
         (kbd "C-c t f") 'tsx-mode-css-toggle-fold)
     (define-key tsx-mode-map
         (kbd "C-c t F") 'tsx-mode-css-toggle-fold-all)
