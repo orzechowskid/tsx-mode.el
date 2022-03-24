@@ -148,17 +148,20 @@ Find and return CSS-in-JS regions in this buffer defined by REGION-DEF."
           (re-search-forward
            (plist-get region-def :start)
            nil t)
-        (let ((start-pos (point)))
-          (when
-              (re-search-forward
-               (plist-get region-def :end)
-               nil t)
-            (push
-             (list :region-begin (+ start-pos (plist-get region-def :start-offset))
-                   :region-end (+ (point) (plist-get region-def :end-offset))
-                   :inline-style (tsx-mode--css-inline-style-at-pos-p
-                                  (+ start-pos (plist-get region-def :start-offset))))
-             regions-for-def)))))
+        (let ((start-pos (point))
+              (end-pos (re-search-forward
+                        (plist-get region-def :end)
+                        nil t)))
+          (push
+           (list :region-begin (+ start-pos (plist-get region-def :start-offset))
+                 ;; as a convenience, (point-max) can also end a region
+                 :region-end (if end-pos
+                                 (+ end-pos
+                                    (plist-get region-def :end-offset))
+                               (point-max))
+                 :inline-style (tsx-mode--css-inline-style-at-pos-p
+                                (+ start-pos (plist-get region-def :start-offset))))
+           regions-for-def))))
     regions-for-def))
 
 
