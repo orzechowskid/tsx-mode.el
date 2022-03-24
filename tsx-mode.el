@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.7.1
+;;; Version: 1.8.0
 
 ;;; Author: Dan Orzechowski
 
@@ -263,7 +263,8 @@ Perform syntax highlighting of CSS in a separate buffer."
   "Internal function.
 
 A hook function registered at `post-command-hook'."
-  (tsx-mode--update-current-css-region))
+  (tsx-mode--update-current-css-region)
+  (tsx-mode--configure-region-specific-vars))
 
 
 (defun tsx-mode--do-css-region-change (old-region new-region)
@@ -338,7 +339,7 @@ A hook function registered at `after-change-functions'."
 (defun tsx-mode--indent-css-at-pos (css-buffer-pos)
   "Internal function.
 
-Calculate indentation for line CSS-BUFFER-LINE in the CSS-in-JS buffer."
+Calculate indentation for line CSS-BUFFER-POINT in the CSS-in-JS buffer."
   (tsi--indent-line-to
    ;; if a CSS region has the :inline-style property then we want to apply
    ;; an extra amount of indentation equal to the parent prop's indentation
@@ -354,7 +355,7 @@ Calculate indentation for line CSS-BUFFER-LINE in the CSS-in-JS buffer."
       0))))
 
 
-(defun tsx-mode--indent-line ()
+(defun tsx-mode--indent-css ()
   "Internal function.
 
 Calculate indentation for the current line."
@@ -372,7 +373,6 @@ Calculate indentation for the current line."
   "Internal function.
 
 A hook function registered at `tsx-mode-css-enter-region-hook'."
-  (setq-local indent-line-function 'tsx-mode--indent-line)
   ;; don't forget to bounds-check in case the region has shrunk due to a kill
   (jit-lock-refontify
    (min (plist-get new-region :region-begin) (point-max))
@@ -383,11 +383,58 @@ A hook function registered at `tsx-mode-css-enter-region-hook'."
   "Internal function.
 
 A hook function registered at `tsx-mode-css-exit-region-hook'."
-  (setq-local indent-line-function 'tsi-typescript--indent-line)
   ;; don't forget to bounds-check in case the region has shrunk due to a kill
   (jit-lock-refontify
    (min (plist-get old-region :region-begin) (point-max))
    (min (plist-get old-region :region-end) (point-max))))
+
+
+(defun tsx-mode--configure-region-specific-vars ()
+  "Internal function.
+(Re-)configure important variables as point moves around the buffer."
+  (tsx-mode--debug "current CSS region: %s, in jsx:"
+                   tsx-mode--current-css-region
+                   (tsx-mode--is-in-jsx-p))
+  (cond
+    (tsx-mode--current-css-region
+     (setq-local indent-line-function 'tsx-mode--indent-css)
+     (setq comment-start "/* ")
+     (setq comment-end " */")
+     (setq comment-start-skip "/\\*")
+     (setq comment-end-skip "[[:space:]]*\\*/\\n?"))
+    ((tsx-mode--is-in-jsx-p)
+     (setq indent-line-function 'tsi-typescript--indent-line)
+     (setq comment-start "{/* ")
+     (setq comment-end " */}")
+     (setq comment-start-skip "{/\\*+[[:space:]]*")
+     (setq comment-end-skip "\\*/}\\n?"))
+    (t
+     (setq indent-line-function 'tsi-typescript--indent-line)
+     ;; TODO: allow configuration of style of non-TSX non-CSS comments?
+     (setq comment-start "// ")
+     (setq comment-end "")
+     (setq comment-start-skip "//[[:space:]]*")
+     (setq comment-end-skip nil)))
+
+  (comment-normalize-vars))
+
+
+(defun tsx-mode--comment-region-function (beg end &optional arg)
+  "Internal function.
+
+Wrap `comment-region-default' and do some stuff afterwards without relying on
+advice."
+  (funcall 'comment-region-default beg end arg)
+  (funcall indent-line-function))
+
+
+(defun tsx-mode--uncomment-region-function (beg end &optional arg)
+  "Internal function.
+
+Wrap `uncomment-region-default' and do some stuff afterwards without relying on
+advice."
+  (funcall 'uncomment-region-default beg end arg)
+  (funcall indent-line-function))
 
 
 (defun tsx-mode--completion-at-point ()
@@ -434,69 +481,6 @@ each fold node is created by invoking CREATE."
                 (plist-get el :region-end)
                 -1 nil))
      tsx-mode--css-regions)))
-
-
-(defun tsx-mode--setup-buffer ()
-  "Internal function.
-
-Hook to be called to finish configuring the current buffer after lsp-mode has
-been enabled."
-  ;; set up tree-sitter and related
-  (tree-sitter-require 'tsx)
-  (add-to-list
-   'tree-sitter-major-mode-language-alist
-   '(tsx-mode . tsx))
-  (add-to-list
-   'tree-sitter-major-mode-language-alist
-   '(scss-mode . css))
-  (setq tree-sitter-hl-default-patterns
-        (tree-sitter-langs--hl-default-patterns 'tsx))
-  (tsi-typescript-mode)
-  (tree-sitter-hl-mode)
-  ;; set up the CSS-in-JS hidden buffer
-  (unless tsx-mode--css-buffer
-    (tsx-mode--debug "setting up css buffer...")
-    (setq tsx-mode--css-buffer
-          (get-buffer-create " *tsx-mode css*"))
-    (with-current-buffer tsx-mode--css-buffer
-      (scss-mode)
-      ;; scss-mode's native highlighting is nicer-looking than tree-sitter's
-      ;;      (tree-sitter-hl-mode)
-      (tsi-css-mode)))
-  ;; set up code-folding
-  (origami-mode t)
-  (add-to-list
-   'origami-parser-alist
-   '(tsx-mode . tsx-mode--origami-parser))
-
-  (tsx-mode--css-update-regions)
-
-  (jit-lock-register
-   'tsx-mode--do-fontification)
-  (add-hook
-   'post-command-hook
-   'tsx-mode--post-command-hook
-   nil t)
-  (add-hook
-   'after-change-functions
-   'tsx-mode--after-change-function
-   nil t)
-  (add-hook
-   'jit-lock-functions
-   'tsx-mode--do-fontification
-   nil t)
-  (add-hook
-   'tsx-mode-css-exit-region-hook
-   'tsx-mode--css-exit-region
-   nil t)
-  (add-hook
-   'tsx-mode-css-enter-region-hook
-   'tsx-mode--css-enter-region
-   nil t)
-  (add-hook
-   'completion-at-point-functions
-   'tsx-mode--completion-at-point
-   nil t))
 
 
 (defun tsx-mode-css-toggle-fold ()
@@ -592,6 +576,94 @@ closing tag."
      (looking-at-p "</>"))))
 
 
+(defun tsx-mode--is-in-jsx-p (&optional maybe-pos)
+  "Internal function.
+
+Return t if MAYBE-POS is inside a JSX-related tree-sitter node.  MAYBE-POS
+defaults to (`point') if not provided."
+  (let ((pos (or maybe-pos (point))))
+    (and-let* ((current-node (tree-sitter-node-at-pos :named pos))
+               (current-node-type (tsc-node-type current-node))
+               (is-jsx (or (eq current-node-type 'jsx_expression)
+                           (eq current-node-type 'jsx_self_closing_element)
+                           (eq current-node-type 'jsx_text)))))))
+
+
+(defun tsx-mode--setup-buffer ()
+  "Internal function.
+
+Hook to be called to finish configuring the current buffer after lsp-mode has
+been enabled."
+  ;; set up tree-sitter and related
+  (tree-sitter-require 'tsx)
+  (add-to-list
+   'tree-sitter-major-mode-language-alist
+   '(tsx-mode . tsx))
+  (add-to-list
+   'tree-sitter-major-mode-language-alist
+   '(scss-mode . css))
+  (setq tree-sitter-hl-default-patterns
+        (tree-sitter-langs--hl-default-patterns 'tsx))
+  (tsi-typescript-mode)
+  (tree-sitter-hl-mode)
+  ;; set up the CSS-in-JS hidden buffer
+  (unless tsx-mode--css-buffer
+    (tsx-mode--debug "setting up css buffer...")
+    (setq tsx-mode--css-buffer
+          (get-buffer-create " *tsx-mode css*"))
+    (with-current-buffer tsx-mode--css-buffer
+      (scss-mode)
+      ;; scss-mode's native highlighting is nicer-looking than tree-sitter's
+      ;;      (tree-sitter-hl-mode)
+      (tsi-css-mode)))
+  ;; set up code-folding
+  (origami-mode t)
+  (add-to-list
+   'origami-parser-alist
+   '(tsx-mode . tsx-mode--origami-parser))
+
+  (set (make-local-variable 'comment-use-syntax) nil)
+  (set (make-local-variable 'comment-region-function)
+       'tsx-mode--comment-region-function)
+  (set (make-local-variable 'uncomment-region-function)
+       'tsx-mode--uncomment-region-function)
+
+  (make-local-variable 'comment-start)
+  (make-local-variable 'comment-end)
+  (make-local-variable 'comment-start-skip)
+  (make-local-variable 'comment-end-skip)
+  (make-local-variable 'indent-line-function)
+
+  (tsx-mode--css-update-regions)
+
+  (jit-lock-register
+   'tsx-mode--do-fontification)
+  (add-hook
+   'post-command-hook
+   'tsx-mode--post-command-hook
+   nil t)
+  (add-hook
+   'after-change-functions
+   'tsx-mode--after-change-function
+   nil t)
+  (add-hook
+   'jit-lock-functions
+   'tsx-mode--do-fontification
+   nil t)
+  (add-hook
+   'tsx-mode-css-exit-region-hook
+   'tsx-mode--css-exit-region
+   nil t)
+  (add-hook
+   'tsx-mode-css-enter-region-hook
+   'tsx-mode--css-enter-region
+   nil t)
+  (add-hook
+   'completion-at-point-functions
+   'tsx-mode--completion-at-point
+   nil t))
+
+
 ;;;###autoload
 (define-derived-mode 
     tsx-mode prog-mode "TSX"
@@ -605,8 +677,6 @@ closing tag."
                     (modify-syntax-entry ?$ "_" table)
                     table)
 
-    (setq-local comment-start "// ")
-    (setq-local comment-end "")
     (define-key tsx-mode-map
         ;; TODO: proxy origami-toggle-node so that the node can be toggled from
         ;; anywhere on the current line
