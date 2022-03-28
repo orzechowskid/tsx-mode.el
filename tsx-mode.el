@@ -45,6 +45,14 @@ closing tags."
   :type 'boolean
   :group 'tsx-mode)
 
+
+(defcustom tsx-mode-css-force-highlighting nil
+  "When set to t, CSS-in-JS tagged-template strings will have syntax highlighting
+applied to them even if point is no longer inside of them."
+  :type 'boolean
+  :group 'tsx-mode)
+
+
 (defvar tsx-mode-css-region-delimiters
   '((;; styled-components, emotion, etc.
      :start "\\(styled\\|css\\)[.()<>[:alnum:]]?+`"
@@ -217,9 +225,16 @@ Get the region beginning on, ending on, or including the line number at point
   "Internal function.
 
 Perform just-in-time text propertization from BEG to END in the current buffer."
+  (tsx-mode--debug "fontifying %d-%d" beg end)
   (tree-sitter-hl--highlight-region beg end nil)
-  (when tsx-mode--current-css-region
-    (tsx-mode--fontify-current-css-region))
+  (cond
+    (tsx-mode--current-css-region
+     (tsx-mode--fontify-current-css-region))
+    (tsx-mode-css-force-highlighting
+     (dolist (region tsx-mode--css-regions)
+       (let ((tsx-mode--current-css-region region))
+         (tsx-mode--fontify-current-css-region))))
+    (t nil))
   `(jit-lock-bounds
     ,(min beg (or (plist-get tsx-mode--current-css-region :region-begin) (point-max)))
     . ,(max end (or (plist-get tsx-mode--current-css-region :region-end) (point-min)))))
@@ -228,7 +243,8 @@ Perform just-in-time text propertization from BEG to END in the current buffer."
 (defun tsx-mode--fontify-current-css-region ()
   "Internal function.
 
-Perform syntax highlighting of CSS in a separate buffer."
+Perform syntax highlighting of CSS in a separate buffer then copy text
+properties back to this buffer."
   (let* ((region tsx-mode--current-css-region)
          (beg (max (point-min) (plist-get region :region-begin)))
          (end (min (point-max) (plist-get region :region-end)))
