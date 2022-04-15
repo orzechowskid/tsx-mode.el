@@ -520,21 +520,16 @@ each fold node is created by invoking CREATE."
   "Internal function.
 
 Return t if a self-closing tag is allowed to be inserted at point."
-  (or
-   (when-let ((current-node (tree-sitter-node-at-pos :named))
-              (current-node-type (tsc-node-type current-node)))
-     (or (eq current-node-type 'jsx_text)
-         (eq current-node-type 'program)))
-   (save-excursion
-     (tsx-mode--debug "checking current named node %s for self-closing tag support..."
-                      (when (tree-sitter-node-at-pos :named) (tsc-node-type (tree-sitter-node-at-pos :named))))
-     (re-search-backward "[^\r\n[:space:]]" nil t)
-     (let* ((last-named-node (tree-sitter-node-at-pos :named))
-            (last-named-node-type (when last-named-node (tsc-node-type last-named-node)))
-            (last-anon-node (tree-sitter-node-at-pos :anonymous))
-            (last-anon-node-type (when last-anon-node (tsc-node-text last-anon-node))))
-       (tsx-mode--debug "checking named node %s and anon node %s for self-closing tag support..."
-                        last-named-node-type last-anon-node-type)
+  (save-excursion
+    (tsx-mode--debug "checking current named node %s for self-closing tag support..."
+                     (when (tree-sitter-node-at-pos :named) (tsc-node-type (tree-sitter-node-at-pos :named))))
+    (re-search-backward "[^\r\n[:space:]]" nil t)
+    (let* ((last-named-node (tree-sitter-node-at-pos :named))
+           (last-named-node-type (when last-named-node (tsc-node-type last-named-node)))
+           (last-anon-node (tree-sitter-node-at-pos :anonymous))
+           (last-anon-node-type (when last-anon-node (tsc-node-text last-anon-node))))
+      (tsx-mode--debug "checking named node %s and anon node %s for self-closing tag support..."
+               last-named-node-type last-anon-node-type)
        (or (string= last-anon-node-type "=>")
            (string= last-anon-node-type "(")
            (string= last-anon-node-type "?")
@@ -542,7 +537,7 @@ Return t if a self-closing tag is allowed to be inserted at point."
            (string= last-anon-node-type "[")
            (string= last-anon-node-type ",")
            (string= last-anon-node-type "=")
-           (eq last-named-node-type 'jsx_opening_element))))))
+           (eq last-named-node-type 'jsx_opening_element)))))
 
 
 (defun tsx-mode-tsx-maybe-insert-self-closing-tag ()
