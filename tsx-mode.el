@@ -55,7 +55,7 @@ applied to them even if point is no longer inside of them."
 
 (defvar tsx-mode-css-region-delimiters
   '((;; styled-components, emotion, etc.
-     :start "\\(styled\\|css\\)[.()<>[:alnum:]]?+`"
+     :start "\\(styled\\|css\\|keyframes\\|createGlobalStyle\\)[.()<>[:alnum:]]?+`"
      :start-offset 0
      :end "`;"
      :end-offset -1)
