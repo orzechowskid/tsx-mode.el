@@ -10,10 +10,6 @@
 
 ;;; Code:
 
-(unless (fboundp 'object-intervals)
-  (error "Unsupported: tsx-mode.el requires Emacs 28.1+"))
-
-
 (require 'css-mode)
 (require 'js)
 (require 'seq)
@@ -30,6 +26,8 @@
 (require 'tsi-css)
 (require 'tsi-typescript)
 
+(unless (fboundp 'object-intervals)
+  (message "tsx-mode CSS fontification requires Emacs 28.1+, so we will do without it"))
 
 (defgroup tsx-mode nil
   "Major mode for JSX webapp files."
@@ -241,6 +239,10 @@ Perform just-in-time text propertization from BEG to END in the current buffer."
     . ,(max end (or (plist-get tsx-mode--current-css-region :region-end) (point-min)))))
 
 
+(defun maybe-object-intervals (obj)
+  (if (fboundp 'object-intervals)
+      (object-intervals obj)))
+
 (defun tsx-mode--fontify-current-css-region ()
   "Internal function.
 
@@ -266,7 +268,7 @@ properties back to this buffer."
         (tree-sitter--after-change (point-min) (point-max) 0)
         (font-lock-ensure (point-min) (point-max)))
       (setq fontified-text-properties-list
-            (object-intervals
+            (maybe-object-intervals
              (buffer-substring
               (+ (length "div{") (point-min))
               (- (point-max) (length "}"))))))
@@ -313,7 +315,7 @@ Run the enter-CSS-region hook with NEW-REGION, then returns NEW-REGION."
   (run-hook-with-args 'tsx-mode-css-enter-region-hook new-region)
   new-region)
 
-  
+
 (defun tsx-mode--do-css-region-exit (old-region)
   "Internal function.
 
@@ -322,7 +324,7 @@ Run the exit-CSS-region hook with OLD-REGION, then returns OLD-REGION."
   (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
   old-region)
 
-  
+
 (defun tsx-mode--update-current-css-region ()
   "Internal function.
 
@@ -680,7 +682,7 @@ been enabled."
 
 
 ;;;###autoload
-(define-derived-mode 
+(define-derived-mode
     tsx-mode prog-mode "TSX"
     "A batteries-included major mode for JSX and friends."
     :group 'tsx-mode
@@ -711,5 +713,5 @@ been enabled."
     (lsp)
     (lsp-completion-mode t))
 
-    
+
 (provide 'tsx-mode)

@@ -9,14 +9,14 @@ Screenshot:
 ## Installation
 
 0. Dependencies:
-Emacs 28.1+ with the following packages installed:
+Emacs 27 (or, better, 28.1+) with the following packages installed:
  - [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/)
  - [`tsi.el`](https://github.com/orzechowskid/tsi.el)
  - [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode)
  - [`company`](https://github.com/company-mode/company-mode)
  - [`origami.el`](https://github.com/gregsexton/origami.el)
 1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
-  
+
 > or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 2. Require: `(require 'tsx-mode)`
 3. Enable: `(tsx-mode t)`
@@ -42,6 +42,8 @@ tons!
 - TS/TSX indentation might not be quite right.  (if you notice something, please open an issue against [tsi.el](https://github.com/orzechowskid/tsi.el))
 - CSS indentation might not be quite right either.  (if you notice something, please open an issue against this repo)
 - only a couple of CSS-in-JS formats are currently supported.
+- CSS fontification relies on a feature introduced in Emacs 28.1, so
+  on Emacs 27 CSS fragments won't be fontified.
 
 ## License
 
