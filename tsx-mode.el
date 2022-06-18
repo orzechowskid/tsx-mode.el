@@ -541,7 +541,8 @@ Return t if a self-closing tag is allowed to be inserted at point."
            (string= last-anon-node-type "=")
            (eq last-named-node-type 'jsx_opening_element)
            (eq last-named-node-type 'jsx_closing_element)
-           (eq last-named-node-type 'jsx_fragment)))))
+           (eq last-named-node-type 'jsx_fragment)
+           (eq last-named-node-type 'jsx_expression)))))
 
 
 (defun tsx-mode-tsx-maybe-insert-self-closing-tag ()
