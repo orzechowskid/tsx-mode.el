@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.9.2
+;;; Version: 1.9.3
 
 ;;; Author: Dan Orzechowski
 
@@ -678,10 +678,9 @@ been enabled."
    'tsx-mode-css-enter-region-hook
    'tsx-mode--css-enter-region
    nil t)
-  (add-hook
-   'completion-at-point-functions
-   'tsx-mode--completion-at-point
-   nil t))
+  (setq
+   completion-at-point-functions
+   '(tsx-mode--completion-at-point lsp-completion-at-point)))
 
 
 ;;;###autoload
