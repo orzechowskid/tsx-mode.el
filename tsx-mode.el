@@ -650,28 +650,6 @@ defaults to (`point') if not provided."
                            (eq current-node-type 'jsx_text)))))))
 
 
-(defun tsx-mode--coverage-get-dir ()
-  "Internal function.
-
-Configures location of coverage directory (if any)."
-  (when (or (not coverlay:base-path)
-	    (equal coverlay:base-path ""))
-    (let* ((package-json
-	    (locate-dominating-file
-	     (buffer-file-name (current-buffer))
-	     "package.json"))
-	   (base-path
-	    (when package-json
-	      (expand-file-name package-json)))
-	   (coverage-file
-	    (when base-path
-	      (concat
-	       base-path
-	       "coverage/lcov.info"))))
-      (message "base path -> %s" base-path)
-      (setq-local coverlay:base-path base-path))))
-
-
 (defun tsx-mode-coverage-toggle ()
   "Toggles code-coverage overlay."
   (interactive)
