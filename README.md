@@ -14,6 +14,7 @@ Emacs 27 (or, better, 28.1+) with the following packages installed:
  - [`tsi.el`](https://github.com/orzechowskid/tsi.el)
  - [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode)
  - [`company`](https://github.com/company-mode/company-mode)
+ - [`coverlay`](https://github.com/twada/coverlay.el)
  - [`origami.el`](https://github.com/gregsexton/origami.el)
 1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
 
@@ -29,10 +30,13 @@ all tsx-mode keybindings live under the `C-c t` prefix.
 | --        | --                                               | ---                            |
 | `C-c t f` | toggle code-folding for current CSS-in-JS region | `tsx-mode-css-toggle-fold`     |
 | `C-c t F` | toggle code-folding for all CSS-in-JS regions    | `tsx-mode-css-toggle-fold-all` |
+| `C-c t c` | toggle code-coverage overlay                     | `tsx-mode-coverage-toggle`     |
 
 ## Configuration
 
 Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
+
+You may also want to customize variables in the `coverlay` customization group if you enable code coverage.
 
 ## Bugs and limitations
 
@@ -42,8 +46,7 @@ tons!
 - TS/TSX indentation might not be quite right.  (if you notice something, please open an issue against [tsi.el](https://github.com/orzechowskid/tsi.el))
 - CSS indentation might not be quite right either.  (if you notice something, please open an issue against this repo)
 - only a couple of CSS-in-JS formats are currently supported.
-- CSS fontification relies on a feature introduced in Emacs 28.1, so
-  on Emacs 27 CSS fragments won't be fontified.
+- CSS fontification relies on a feature introduced in Emacs 28.1, so on Emacs 27 CSS fragments won't be fontified.
 
 ## License
 

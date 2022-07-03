@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.9.3
+;;; Version: 1.10.0
 
 ;;; Author: Dan Orzechowski
 
@@ -14,6 +14,7 @@
 (require 'js)
 (require 'seq)
 
+(require 'coverlay)
 (require 'lsp)
 (require 'lsp-completion)
 ;; origami depends on some now-deprecated cl functions and there's not much we
@@ -459,31 +460,58 @@ advice."
   (funcall indent-line-function))
 
 
+(defun tsx-mode--css-completion-at-point ()
+  "Internal function.
+
+Perform completion-at-point inside the hidden CSS buffer and apply to this one."
+  (let* ((point-offset
+          (+ 1
+             (length "div{")
+             (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
+         (completion
+          (with-current-buffer tsx-mode--css-buffer
+            (goto-char point-offset)
+            (css-completion-at-point)))
+         (offset (+ (plist-get tsx-mode--current-css-region :region-begin)
+                    (- (+ 1 (length "div{"))))))
+    ;; translate css-buffer coordinates into main-buffer coordinates
+    (setcar (nthcdr 1 completion)
+            (+ (cadr completion) offset))
+    (setcar (nthcdr 0 completion)
+            (+ (car completion) offset))
+    completion))
+
+
+(defun tsx-mode--looking-at-node-p (node-type &optional pos)
+  "Internal function.
+
+Returns t if POS is inside a tree-sitter node of type NODE-TYPE.  POS defaults
+to point."
+  (let* ((current-node
+	  (tree-sitter-node-at-pos nil (or pos (point))))
+	 (current-node-type
+	  (when current-node
+	    (tsc-node-type current-node))))
+    (while (and current-node
+		(not (equal
+		      node-type
+		      (tsc-node-type current-node))))
+      (setq current-node
+	    (tsc-get-parent current-node)))
+    (if current-node
+	t
+      nil)))
+
+
 (defun tsx-mode--completion-at-point ()
   "Internal function.
 
 Delegate to either css-mode's capf or lsp-mode's capf depending on where point
 is."
-  (if tsx-mode--current-css-region
-      (let* ((point-offset
-              (+ 1
-                 (length "div{")
-                 (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
-             (completion
-              (with-current-buffer tsx-mode--css-buffer
-                (goto-char point-offset)
-                (css-completion-at-point))))
-        (if completion
-            (let ((offset (+ (plist-get tsx-mode--current-css-region :region-begin)
-                             (- (+ 1 (length "div{"))))))
-              ;; translate css-buffer coordinates into main-buffer coordinates
-              (setcar (nthcdr 1 completion)
-                      (+ (cadr completion) offset))
-              (setcar (nthcdr 0 completion)
-                      (+ (car completion) offset))
-              completion)
-          nil))
-    (lsp-completion-at-point)))
+  (if (or (not tsx-mode--current-css-region)
+	  (tsx-mode--looking-at-node-p 'template_substitution))
+      (lsp-completion-at-point)
+    (tsx-mode--css-completion-at-point)))
 
 
 (defun tsx-mode--origami-parser (create)
@@ -609,6 +637,36 @@ defaults to (`point') if not provided."
                            (eq current-node-type 'jsx_text)))))))
 
 
+(defun tsx-mode-coverage-toggle ()
+  "Toggles code-coverage overlay."
+  (interactive)
+  (coverlay-toggle-overlays-current-buffer))
+
+
+(defun tsx-mode--coverage-configure ()
+  "Internal function.
+
+Sets up code-coverage overlays."
+  (let* ((package-json
+	  (locate-dominating-file
+	   (buffer-file-name (current-buffer))
+	   "package.json"))
+	 (base-path
+	  (when package-json
+	    (expand-file-name package-json)))
+	 (coverage-file
+	  (when base-path
+	    (concat
+	     base-path
+	     "coverage/lcov.info"))))
+    (message "package-json: %s" package-json)
+    (message "coverage-file: %s" coverage-file)
+    (setq-local coverlay:base-path base-path)
+    (when (and coverage-file
+	       (file-exists-p coverage-file)) ; can't handle nil
+      (coverlay-watch-file coverage-file))))
+
+
 (defun tsx-mode--setup-buffer ()
   "Internal function.
 
@@ -655,6 +713,7 @@ been enabled."
   (make-local-variable 'indent-line-function)
 
   (tsx-mode--css-update-regions)
+  (tsx-mode--coverage-configure)
 
   (jit-lock-register
    'tsx-mode--do-fontification)
@@ -696,14 +755,26 @@ been enabled."
                     (modify-syntax-entry ?$ "_" table)
                     table)
 
-    (define-key tsx-mode-map
-        (kbd "C-c t f") 'tsx-mode-css-toggle-fold)
-    (define-key tsx-mode-map
-        (kbd "C-c t F") 'tsx-mode-css-toggle-fold-all)
-    (define-key tsx-mode-map
-        (kbd "<") 'tsx-mode-tsx-maybe-insert-self-closing-tag)
-    (define-key tsx-mode-map
-        (kbd ">") 'tsx-mode-tsx-maybe-close-tag)
+    (define-key
+     tsx-mode-map
+     (kbd "C-c t f")
+     'tsx-mode-css-toggle-fold)
+    (define-key
+     tsx-mode-map
+     (kbd "C-c t F")
+     'tsx-mode-css-toggle-fold-all)
+    (define-key
+     tsx-mode-map
+     (kbd "C-c t c")
+     'tsx-mode-coverage-toggle)
+    (define-key
+     tsx-mode-map
+     (kbd "<")
+     'tsx-mode-tsx-maybe-insert-self-closing-tag)
+    (define-key
+     tsx-mode-map
+     (kbd ">")
+     'tsx-mode-tsx-maybe-close-tag)
 
     ;; configure things after lsp-mode is finished doing whatever it does
     (add-hook
