@@ -368,7 +368,6 @@ Calculate indentation for line CSS-BUFFER-POINT in the CSS-in-JS buffer."
    ;; an extra amount of indentation equal to the parent prop's indentation
    (+
     (with-current-buffer tsx-mode--css-buffer
-      ;;     (setq-local tsi-debug t)
       (goto-char css-buffer-pos)
       (tsi--walk 'tsi-css--get-indent-for))
     (if (plist-get tsx-mode--current-css-region :inline-style)
@@ -382,14 +381,28 @@ Calculate indentation for line CSS-BUFFER-POINT in the CSS-in-JS buffer."
   "Internal function.
 
 Calculate indentation for the current line."
-  (if (< (save-excursion
-           (beginning-of-line)
-           (point))
-         (plist-get tsx-mode--current-css-region :region-begin))
-      ;; point is in a CSS region but the line itself is not
-      (tsi-typescript--indent-line)
+  (cond
+   ((< (save-excursion
+	 (beginning-of-line)
+	 (point))
+       (plist-get tsx-mode--current-css-region :region-begin))
+    ;; point is in a CSS region but the beginning of the line is not
+    (tsi-typescript--indent-line))
+   ((save-excursion
+      (back-to-indentation)
+      (equal "${"
+	     (tsc-node-type (tree-sitter-node-at-pos nil (point)))))
+    ;; point is in a CSS region and the line begins with a string interpolation
     (tsx-mode--indent-css-at-pos
-     (+ 1 (length "div{") (- (point) (plist-get tsx-mode--current-css-region :region-begin))))))
+     (+ 1
+	(length "div{")
+	(- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
+   (t
+    ;; normal CSS stuff
+    (tsx-mode--indent-css-at-pos
+     (+ 1
+	(length "div{")
+	(- (point) (plist-get tsx-mode--current-css-region :region-begin)))))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
