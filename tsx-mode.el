@@ -650,34 +650,50 @@ defaults to (`point') if not provided."
                            (eq current-node-type 'jsx_text)))))))
 
 
+(defun tsx-mode--coverage-get-dir ()
+  "Internal function.
+
+Configures location of coverage directory (if any)."
+  (when (or (not coverlay:base-path)
+	    (equal coverlay:base-path ""))
+    (let* ((package-json
+	    (locate-dominating-file
+	     (buffer-file-name (current-buffer))
+	     "package.json"))
+	   (base-path
+	    (when package-json
+	      (expand-file-name package-json)))
+	   (coverage-file
+	    (when base-path
+	      (concat
+	       base-path
+	       "coverage/lcov.info"))))
+      (message "base path -> %s" base-path)
+      (setq-local coverlay:base-path base-path))))
+
+
 (defun tsx-mode-coverage-toggle ()
   "Toggles code-coverage overlay."
   (interactive)
-  (coverlay-toggle-overlays-current-buffer))
-
-
-(defun tsx-mode--coverage-configure ()
-  "Internal function.
-
-Sets up code-coverage overlays."
-  (let* ((package-json
-	  (locate-dominating-file
-	   (buffer-file-name (current-buffer))
-	   "package.json"))
-	 (base-path
-	  (when package-json
-	    (expand-file-name package-json)))
-	 (coverage-file
-	  (when base-path
-	    (concat
-	     base-path
-	     "coverage/lcov.info"))))
-    (message "package-json: %s" package-json)
-    (message "coverage-file: %s" coverage-file)
-    (setq-local coverlay:base-path base-path)
-    (when (and coverage-file
-	       (file-exists-p coverage-file)) ; can't handle nil
-      (coverlay-watch-file coverage-file))))
+  (if coverlay-minor-mode
+      (coverlay-minor-mode 'toggle)
+    (let* ((package-json
+	    (locate-dominating-file
+	     (buffer-file-name (current-buffer))
+	     "package.json"))
+	   (base-path
+	    (when package-json
+	      (expand-file-name package-json)))
+	   (coverage-file
+	    (when base-path
+	      (concat
+	       base-path
+	       "coverage/lcov.info"))))
+      (setq-local coverlay:base-path base-path)
+      (when (and coverage-file
+		 (file-exists-p coverage-file)) ; can't handle nil
+	(coverlay-watch-file coverage-file))
+      (coverlay-minor-mode 'toggle))))
 
 
 (defun tsx-mode--setup-buffer ()
@@ -726,7 +742,6 @@ been enabled."
   (make-local-variable 'indent-line-function)
 
   (tsx-mode--css-update-regions)
-  (tsx-mode--coverage-configure)
 
   (jit-lock-register
    'tsx-mode--do-fontification)
