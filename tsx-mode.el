@@ -363,7 +363,6 @@ A hook function registered at `after-change-functions'."
   "Internal function.
 
 Calculate indentation for line CSS-BUFFER-POINT in the CSS-in-JS buffer."
-  (tsi--indent-line-to
    ;; if a CSS region has the :inline-style property then we want to apply
    ;; an extra amount of indentation equal to the parent prop's indentation
    (+
@@ -374,35 +373,28 @@ Calculate indentation for line CSS-BUFFER-POINT in the CSS-in-JS buffer."
         (save-excursion
           (goto-char (plist-get tsx-mode--current-css-region :region-begin))
           (tsi--walk 'tsi-typescript--get-indent-for))
-      0))))
+      0)))
 
 
-(defun tsx-mode--indent-css ()
+(defun tsx-mode--indent ()
   "Internal function.
 
 Calculate indentation for the current line."
-  (cond
-   ((< (save-excursion
-	 (beginning-of-line)
-	 (point))
-       (plist-get tsx-mode--current-css-region :region-begin))
-    ;; point is in a CSS region but the beginning of the line is not
-    (tsi-typescript--indent-line))
-   ((save-excursion
-      (back-to-indentation)
-      (equal "${"
-	     (tsc-node-type (tree-sitter-node-at-pos nil (point)))))
-    ;; point is in a CSS region and the line begins with a string interpolation
-    (tsx-mode--indent-css-at-pos
-     (+ 1
-	(length "div{")
-	(- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-   (t
-    ;; normal CSS stuff
-    (tsx-mode--indent-css-at-pos
-     (+ 1
-	(length "div{")
-	(- (point) (plist-get tsx-mode--current-css-region :region-begin)))))))
+  (tsi--indent-line-to
+   (+
+    ;; indentation for typescript tree-sitter node
+    (tsi--walk 'tsi-typescript--get-indent-for)
+    ;; indentation for css tree-sitter node
+    (if tsx-mode--current-css-region
+	;; hack: catch incorrect indentation caused by ERROR nodes in the CST
+	;; belonging to the hidden CSS buffer and try to do the right thing
+	(max
+	 tsi-css-indent-offset
+	 (tsx-mode--indent-css-at-pos
+	  (+ 1
+	     (length "div{")
+	     (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
+      0))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
@@ -433,19 +425,16 @@ A hook function registered at `tsx-mode-css-exit-region-hook'."
                    (tsx-mode--is-in-jsx-p))
   (cond
     (tsx-mode--current-css-region
-     (setq-local indent-line-function 'tsx-mode--indent-css)
      (setq comment-start "/* ")
      (setq comment-end " */")
      (setq comment-start-skip "/\\*")
      (setq comment-end-skip "[[:space:]]*\\*/\\n?"))
     ((tsx-mode--is-in-jsx-p)
-     (setq indent-line-function 'tsi-typescript--indent-line)
      (setq comment-start "{/* ")
      (setq comment-end " */}")
      (setq comment-start-skip "{/\\*+[[:space:]]*")
      (setq comment-end-skip "\\*/}\\n?"))
     (t
-     (setq indent-line-function 'tsi-typescript--indent-line)
      ;; TODO: allow configuration of style of non-TSX non-CSS comments?
      (setq comment-start "// ")
      (setq comment-end "")
@@ -718,6 +707,8 @@ been enabled."
   (make-local-variable 'comment-start-skip)
   (make-local-variable 'comment-end-skip)
   (make-local-variable 'indent-line-function)
+
+  (setq-local indent-line-function 'tsx-mode--indent)
 
   (tsx-mode--css-update-regions)
 
