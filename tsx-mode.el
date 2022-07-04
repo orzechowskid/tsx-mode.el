@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.10.0
+;;; Version: 1.10.1
 
 ;;; Author: Dan Orzechowski
 
@@ -383,18 +383,27 @@ Calculate indentation for the current line."
   (tsi--indent-line-to
    (+
     ;; indentation for typescript tree-sitter node
-    (tsi--walk 'tsi-typescript--get-indent-for)
+    (let ((ts-indent
+	   (tsi--walk 'tsi-typescript--get-indent-for)))
+      (tsx-mode--debug "TS indentation: %d" ts-indent)
+      ts-indent)
     ;; indentation for css tree-sitter node
-    (if tsx-mode--current-css-region
-	;; hack: catch incorrect indentation caused by ERROR nodes in the CST
-	;; belonging to the hidden CSS buffer and try to do the right thing
-	(max
-	 tsi-css-indent-offset
-	 (tsx-mode--indent-css-at-pos
-	  (+ 1
-	     (length "div{")
-	     (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-      0))))
+    (let ((css-indent
+	   (if (and tsx-mode--current-css-region
+		    (save-excursion
+		      (end-of-line)
+		      (tsx-mode--css-region-for-point)))
+	       ;; hack: catch incorrect indentation caused by ERROR nodes in the CST
+	       ;; belonging to the hidden CSS buffer and try to do the right thing
+	       (max
+		tsi-css-indent-offset
+		(tsx-mode--indent-css-at-pos
+		 (+ 1
+		    (length "div{")
+		    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
+	     0)))
+      (tsx-mode--debug "CSS indentation: %d" css-indent)
+      css-indent))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
