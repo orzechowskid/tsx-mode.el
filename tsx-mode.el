@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.10.1
+;;; Version: 2.0.0
 
 ;;; Author: Dan Orzechowski
 
@@ -49,6 +49,14 @@ closing tags."
   "When set to t, CSS-in-JS tagged-template strings will have syntax highlighting
 applied to them even if point is no longer inside of them."
   :type 'boolean
+  :group 'tsx-mode)
+
+
+(defcustom tsx-mode-fold-tree-queries
+  '("(function_declaration (statement_block) @fb)"
+    "(call_expression (template_string) @ts)")
+  "List of tree-sitter queries for which to create Origami code-folding nodes."
+  :type '(repeat string)
   :group 'tsx-mode)
 
 
@@ -129,6 +137,13 @@ CSS-in-JS region containing point (if any).")
   "Internal variable.
 
 Plist of all CSS-in-JS regions in this buffer.")
+
+
+(defvar-local tsx-mode--ts-query-cursor
+    nil
+  "Internal variable.
+
+Cursor for tree-sitter queries.")
 
 
 (defun tsx-mode--css-inline-style-at-pos-p (pos)
@@ -526,36 +541,24 @@ is."
 
 
 (defun tsx-mode--origami-parser (create)
-  "Internal function.
-
-Parser for origami.el code folding.  Must return a list of fold nodes, where
-each fold node is created by invoking CREATE."
   (lambda (content)
-    ;; assume `content` is equal to the current buffer contents, so we can re-
-    ;; use our existing list of CSS-in-JS regions.  is that safe?  dunno!
-    (mapcar
-     (lambda (el)
-       ;; TODO: this -1 offset might need to be specific to a given region type
-       ;; (e.g. styled-components)
-       (funcall create
-                (plist-get el :region-begin)
-                (plist-get el :region-end)
-                -1 nil))
-     tsx-mode--css-regions)))
-
-
-(defun tsx-mode-css-toggle-fold ()
-  "Toggle code-folding for the CSS-in-JS region belonging to the current line."
-  (interactive)
-  (when-let ((region-to-fold (tsx-mode--css-region-for-line)))
-    (origami-toggle-node (current-buffer) (plist-get region-to-fold :region-begin))))
-
-
-(defun tsx-mode-css-toggle-fold-all ()
-  "Toggle code-folding for all CSS-in-JS regions."
-  (interactive)
-  (origami-toggle-all-nodes (current-buffer)))
-
+    (let* ((query (tsc-make-query
+                   (tsc-tree-language tree-sitter-tree)
+                   (string-join tsx-mode-fold-tree-queries)))
+           (captures (tsc-query-captures
+                      query
+                      (tsc-root-node tree-sitter-tree)
+                      (lambda (beg end)
+                        (buffer-substring
+                         (byte-to-position beg)
+                         (byte-to-position end))))))
+      (mapcar
+       (lambda (elt)
+         (funcall create
+                  (tsc-node-start-position (cdr elt))
+                  (tsc-node-end-position (cdr elt))
+                  0 nil))
+       captures))))
 
 (defun tsx-mode--tsx-self-closing-tag-at-point-p ()
   "Internal function.
@@ -764,11 +767,11 @@ been enabled."
     (define-key
      tsx-mode-map
      (kbd "C-c t f")
-     'tsx-mode-css-toggle-fold)
+     'origami-toggle-node)
     (define-key
      tsx-mode-map
      (kbd "C-c t F")
-     'tsx-mode-css-toggle-fold-all)
+     'origami-toggle-all-nodes)
     (define-key
      tsx-mode-map
      (kbd "C-c t c")
