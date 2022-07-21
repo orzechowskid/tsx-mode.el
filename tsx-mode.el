@@ -139,13 +139,6 @@ CSS-in-JS region containing point (if any).")
 Plist of all CSS-in-JS regions in this buffer.")
 
 
-(defvar-local tsx-mode--ts-query-cursor
-    nil
-  "Internal variable.
-
-Cursor for tree-sitter queries.")
-
-
 (defun tsx-mode--css-inline-style-at-pos-p (pos)
   "Internal function.
 
