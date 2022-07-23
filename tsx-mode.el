@@ -533,25 +533,44 @@ is."
     (tsx-mode--css-completion-at-point)))
 
 
+(defun tsx-mode--origami-query (query-root-node)
+  (mapcar 'cdr
+          (tsc-query-captures
+           (tsc-make-query
+            tree-sitter-language
+            (string-join tsx-mode-fold-tree-queries))
+           query-root-node
+           'ts--buffer-substring-no-properties)))
+
+
+(defun tsx-mode--origami-fold (node create)
+  (let ((child-nodes (cdr (tsx-mode--origami-query node))))
+    (funcall create
+             (tsc-node-start-position node)
+             (tsc-node-end-position node)
+             0
+             (mapcar
+              (lambda (el)
+                (tsx-mode--origami-fold el create))
+              child-nodes))))
+
+
 (defun tsx-mode--origami-parser (create)
   (lambda (content)
-    (let* ((query (tsc-make-query
-                   (tsc-tree-language tree-sitter-tree)
-                   (string-join tsx-mode-fold-tree-queries)))
-           (captures (tsc-query-captures
-                      query
-                      (tsc-root-node tree-sitter-tree)
-                      (lambda (beg end)
-                        (buffer-substring
-                         (byte-to-position beg)
-                         (byte-to-position end))))))
-      (mapcar
-       (lambda (elt)
-         (funcall create
-                  (tsc-node-start-position (cdr elt))
-                  (tsc-node-end-position (cdr elt))
-                  0 nil))
-       captures))))
+    (mapcar
+     (lambda (elt)
+       (tsx-mode--origami-fold elt create))
+     (seq-reduce
+      (lambda (res el)
+        (if (> (tsc-node-start-position el)
+               (if (car (last res))
+                   (tsc-node-end-position (car (last res)))
+                 -1))
+            (append res (list el))
+          res))
+      (tsx-mode--origami-query (tsc-root-node tree-sitter-tree))
+      '()))))
+
 
 (defun tsx-mode--tsx-self-closing-tag-at-point-p ()
   "Internal function.
