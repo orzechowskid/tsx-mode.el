@@ -534,6 +534,9 @@ is."
 
 
 (defun tsx-mode--origami-query (query-root-node)
+  "Internal function.
+
+Run the user's fold queries on a subtree with root at QUERY-ROOT-NODE."
   (mapcar 'cdr
           (tsc-query-captures
            (tsc-make-query
@@ -544,6 +547,9 @@ is."
 
 
 (defun tsx-mode--origami-fold (node create)
+  "Internal function.
+
+Create an Origami fold node (with children) from the provided tree-sitter NODE."
   (let ((child-nodes (cdr (tsx-mode--origami-query node))))
     (funcall create
              (tsc-node-start-position node)
@@ -556,6 +562,9 @@ is."
 
 
 (defun tsx-mode--origami-parser (create)
+  "Internal function.
+
+Return a function suitable for use as an Origami parser."
   (lambda (content)
     (mapcar
      (lambda (elt)
