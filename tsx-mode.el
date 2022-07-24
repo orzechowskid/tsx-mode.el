@@ -53,7 +53,7 @@ applied to them even if point is no longer inside of them."
 
 
 (defcustom tsx-mode-fold-tree-queries
-  '("(function_declaration (statement_block) @fb)"
+  '("((statement_block) @fb)"
     "(call_expression (template_string) @ts)")
   "List of tree-sitter queries for which to create Origami code-folding nodes."
   :type '(repeat string)
@@ -533,52 +533,64 @@ is."
     (tsx-mode--css-completion-at-point)))
 
 
-(defun tsx-mode--origami-query (query-root-node)
-  "Internal function.
+(defun tsx-mode--make-captures-tree (captures create start end)
+  "Make a tree from CAPTURES using CREATE that are between START and END.
 
-Run the user's fold queries on a subtree with root at QUERY-ROOT-NODE."
-  (mapcar 'cdr
-          (tsc-query-captures
-           (tsc-make-query
-            tree-sitter-language
-            (string-join tsx-mode-fold-tree-queries))
-           query-root-node
-           'ts--buffer-substring-no-properties)))
+The CAPTURES, as returned by `tsc-query-captures', may overlap,
+thus this generates a tree (or multiple), as required by Origami.
 
-
-(defun tsx-mode--origami-fold (node create)
-  "Internal function.
-
-Create an Origami fold node (with children) from the provided tree-sitter NODE."
-  (let ((child-nodes (cdr (tsx-mode--origami-query node))))
-    (funcall create
-             (tsc-node-start-position node)
-             (tsc-node-end-position node)
-             0
-             (mapcar
-              (lambda (el)
-                (tsx-mode--origami-fold el create))
-              child-nodes))))
+Returns a pair (regions . captures) with the remaining captures."
+  (let (regions break)
+    (while (and (not break) captures)
+      (let* ((elt (cdar captures))
+             (e-start (tsc-node-start-position elt))
+             (e-end (tsc-node-end-position elt)))
+        (if (>= e-start end)
+            ;; the current capture is outside of our range, we're done
+            ;; here
+            (setq break t)
+          (let* ((e-tree (tsx-mode--make-captures-tree
+                          (cdr captures)
+                          create
+                          e-start
+                          e-end))
+                 (e-children (car e-tree)))
+            (setq captures (cdr e-tree))
+            (setq regions
+                  (cons
+                   (funcall create
+                            e-start
+                            e-end
+                            0
+                            e-children)
+                   regions))))))
+    (cons (reverse regions) captures)))
 
 
 (defun tsx-mode--origami-parser (create)
   "Internal function.
 
-Return a function suitable for use as an Origami parser."
+Returns a parser for origami.el code folding.  The parser must return a list of
+fold nodes, where each fold node is created by invoking CREATE."
   (lambda (content)
-    (mapcar
-     (lambda (elt)
-       (tsx-mode--origami-fold elt create))
-     (seq-reduce
-      (lambda (res el)
-        (if (> (tsc-node-start-position el)
-               (if (car (last res))
-                   (tsc-node-end-position (car (last res)))
-                 -1))
-            (append res (list el))
-          res))
-      (tsx-mode--origami-query (tsc-root-node tree-sitter-tree))
-      '()))))
+    (let* ((query (tsc-make-query
+                   (tsc-tree-language tree-sitter-tree)
+                   (string-join tsx-mode-fold-tree-queries)))
+           (captures (tsc-query-captures
+                      query
+                      (tsc-root-node tree-sitter-tree)
+                      (lambda (beg end)
+                        (buffer-substring
+                         (byte-to-position beg)
+                         (byte-to-position end))))))
+      (car
+       (tsx-mode--make-captures-tree
+        ;; captures is an unspecified sequence (currently array) but
+        ;; we'd prefer to process it as a list
+        (mapcar #'identity captures)
+        create
+        (point-min)
+        (point-max))))))
 
 
 (defun tsx-mode--tsx-self-closing-tag-at-point-p ()
