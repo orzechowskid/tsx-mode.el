@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 1.10.1
+;;; Version: 1.10.2
 
 ;;; Author: Dan Orzechowski
 
@@ -383,8 +383,9 @@ Calculate indentation for the current line."
   (tsi--indent-line-to
    (+
     ;; indentation for typescript tree-sitter node
-    (let ((ts-indent
-	   (tsi--walk 'tsi-typescript--get-indent-for)))
+    (let ((ts-indent (tsi-calculate-indentation
+		      'tsi-typescript--get-indent-for
+		      'tsi-typescript--get-indent-for-current-line)))
       (tsx-mode--debug "TS indentation: %d" ts-indent)
       ts-indent)
     ;; indentation for css tree-sitter node
