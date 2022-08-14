@@ -391,8 +391,9 @@ Calculate indentation for the current line."
   (tsi--indent-line-to
    (+
     ;; indentation for typescript tree-sitter node
-    (let ((ts-indent
-	   (tsi--walk 'tsi-typescript--get-indent-for)))
+    (let ((ts-indent (tsi-calculate-indentation
+		      'tsi-typescript--get-indent-for
+		      'tsi-typescript--get-indent-for-current-line)))
       (tsx-mode--debug "TS indentation: %d" ts-indent)
       ts-indent)
     ;; indentation for css tree-sitter node
