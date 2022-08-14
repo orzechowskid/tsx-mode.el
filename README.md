@@ -26,11 +26,11 @@ Emacs 27 (or, better, 28.1+) with the following packages installed:
 
 all tsx-mode keybindings live under the `C-c t` prefix.
 
-| Binding   | Command                                          | Function                       |
-| --        | --                                               | ---                            |
-| `C-c t f` | toggle code-folding for current CSS-in-JS region | `tsx-mode-css-toggle-fold`     |
-| `C-c t F` | toggle code-folding for all CSS-in-JS regions    | `tsx-mode-css-toggle-fold-all` |
-| `C-c t c` | toggle code-coverage overlay                     | `tsx-mode-coverage-toggle`     |
+| Binding   | Command                                | Function                   |
+| --        | --                                     | --                         |
+| `C-c t f` | toggle code-folding for current region | `origami-toggle-node`      |
+| `C-c t F` | toggle code-folding for all regions    | `origami-toggle-all-nodes` |
+| `C-c t c` | toggle code-coverage overlay           | `tsx-mode-coverage-toggle` |
 
 ## Configuration
 
