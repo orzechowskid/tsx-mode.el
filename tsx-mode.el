@@ -409,22 +409,15 @@ Calculate indentation for the current line."
       (tsx-mode--debug "TS indentation: %d" ts-indent)
       ts-indent)
     ;; indentation for css tree-sitter node
-    (let ((css-indent
-	   (if (and tsx-mode--current-css-region
-		    (save-excursion
-		      (end-of-line)
-		      (tsx-mode--css-region-for-point)))
-	       ;; hack: catch incorrect indentation caused by ERROR nodes in the CST
-	       ;; belonging to the hidden CSS buffer and try to do the right thing
-	       (max
-		tsi-css-indent-offset
-		(tsx-mode--indent-css-at-pos
-		 (+ 1
-		    (length "div{")
-		    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-	     0)))
-      (tsx-mode--debug "CSS indentation: %d" css-indent)
-      css-indent))))
+    (if (and tsx-mode--current-css-region
+	     (save-excursion
+	       (end-of-line)
+	       (tsx-mode--css-region-for-point)))
+	(tsx-mode--indent-css-at-pos
+	 (+ 1
+	    (length "div{")
+	    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
+    0)))
 
 
 (defun tsx-mode--css-enter-region (new-region)
