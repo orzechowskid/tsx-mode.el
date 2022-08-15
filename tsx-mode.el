@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 2.0.0
+;;; Version: 2.0.1
 
 ;;; Author: Dan Orzechowski
 
@@ -308,7 +308,7 @@ with NEW-REGION, then returns NEW-REGION."
                (plist-get old-region :region-begin))
               (=
                (plist-get new-region :region-end)
-               (plist-get new-region :region-end)))
+               (plist-get old-region :region-end)))
     ;; don't run hooks if the region is the same but its bounds have changed
     (tsx-mode--debug "changing css-in-js regions")
     (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
