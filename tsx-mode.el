@@ -1,14 +1,15 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 2.0.0
+;;; Version: 2.1.0
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "27") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (lsp-mode "8.0.0") (origami "1.0") (coverlay "3.0.2"))
+;;; Package-Requires: ((emacs "27") (tsi "1.0.0") (tree-sitter-langs "0.11.3") (lsp-mode "8.0.0") (origami "1.0") (coverlay "3.0.2") (tree-sitter-css-in-js "0.0.2")
 
 ;;; Code:
+
 
 (require 'css-mode)
 (require 'js)
@@ -22,6 +23,7 @@
 (let ((byte-compile-warnings '((not cl-functions))))
   (require 'origami))
 (require 'tree-sitter)
+(require 'tree-sitter-css-in-js)
 (require 'tree-sitter-hl)
 (require 'tree-sitter-langs)
 (require 'tsi-css)
@@ -29,6 +31,16 @@
 
 (unless (fboundp 'object-intervals)
   (message "tsx-mode CSS fontification requires Emacs 28.1+, so we will do without it"))
+
+(tree-sitter-require 'tsx)
+(add-to-list
+ 'tree-sitter-major-mode-language-alist
+ '(tsx-mode . tsx))
+(tree-sitter-require 'css_in_js)
+(add-to-list
+ 'tree-sitter-major-mode-language-alist
+ '(tsx-mode--css-mode . css_in_js))
+
 
 (defgroup tsx-mode nil
   "Major mode for JSX webapp files."
@@ -526,8 +538,7 @@ to point."
 (defun tsx-mode--completion-at-point ()
   "Internal function.
 
-Delegate to either css-mode's capf or lsp-mode's capf depending on where point
-is."
+Delegate to either our own capf or lsp-mode's capf depending on where point is."
   (if (or (not tsx-mode--current-css-region)
 	  (tsx-mode--looking-at-node-p 'template_substitution))
       (lsp-completion-at-point)
@@ -715,27 +726,16 @@ defaults to (`point') if not provided."
 Hook to be called to finish configuring the current buffer after lsp-mode has
 been enabled."
   ;; set up tree-sitter and related
-  (tree-sitter-require 'tsx)
-  (add-to-list
-   'tree-sitter-major-mode-language-alist
-   '(tsx-mode . tsx))
-  (add-to-list
-   'tree-sitter-major-mode-language-alist
-   '(scss-mode . css))
   (setq tree-sitter-hl-default-patterns
         (tree-sitter-langs--hl-default-patterns 'tsx))
   (tsi-typescript-mode)
   (tree-sitter-hl-mode)
+
   ;; set up the CSS-in-JS hidden buffer
-  (unless tsx-mode--css-buffer
-    (tsx-mode--debug "setting up css buffer...")
-    (setq tsx-mode--css-buffer
-          (get-buffer-create " *tsx-mode css*"))
-    (with-current-buffer tsx-mode--css-buffer
-      (scss-mode)
-      ;; scss-mode's native highlighting is nicer-looking than tree-sitter's
-      ;;      (tree-sitter-hl-mode)
-      (tsi-css-mode)))
+  (setq tsx-mode--css-buffer (get-buffer-create " *tsx-mode css*"))
+  (with-current-buffer tsx-mode--css-buffer
+    (tsx-mode--css-mode))
+
   ;; set up code-folding
   (origami-mode t)
   (add-to-list
@@ -782,7 +782,16 @@ been enabled."
    nil t)
   (setq
    completion-at-point-functions
-   '(tsx-mode--completion-at-point lsp-completion-at-point)))
+   '(tsx-mode--completion-at-point lsp-completion-at-point))
+  (run-mode-hooks))
+
+
+(define-derived-mode
+  tsx-mode--css-mode scss-mode "TSX+CSS"
+  "Internal mode.  Major mode for hidden css buffer belonging to tsx-mode."
+  :group 'tsx-mode
+
+  (tree-sitter-mode t))
 
 
 ;;;###autoload
