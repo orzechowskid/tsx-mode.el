@@ -320,7 +320,7 @@ with NEW-REGION, then returns NEW-REGION."
                (plist-get old-region :region-begin))
               (=
                (plist-get new-region :region-end)
-               (plist-get new-region :region-end)))
+               (plist-get old-region :region-end)))
     ;; don't run hooks if the region is the same but its bounds have changed
     (tsx-mode--debug "changing css-in-js regions")
     (run-hook-with-args 'tsx-mode-css-exit-region-hook old-region)
@@ -416,8 +416,8 @@ Calculate indentation for the current line."
 	(tsx-mode--indent-css-at-pos
 	 (+ 1
 	    (length "div{")
-	    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-    0)))
+	    (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
+      0))))
 
 
 (defun tsx-mode--css-enter-region (new-region)
