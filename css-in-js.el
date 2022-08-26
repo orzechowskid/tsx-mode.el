@@ -162,38 +162,35 @@ Get the region beginning on, ending on, or including the line number at point
   "Internal function.
 Perform syntax highlighting of CSS in a separate buffer then copy text
 properties back to this buffer."
-  (message "fontify css")
+  (tsx-mode--debug "fontify css")
   (let* ((region tsx-mode--current-css-region)
          (beg (max (point-min) (plist-get region :region-begin)))
          (end (min (point-max) (plist-get region :region-end)))
          (str (buffer-substring beg (- end 1)))
-         (fontified-text-properties-list nil))
-    ;; get fontification properties to apply by font-locking our secret buffer
-    (with-current-buffer tsx-mode--css-buffer
-      ;; --fontify-current-css-region is called in the context of a post-command
-      ;; hook which means `inhibit-modification-hooks' is temporarily set to non-
-      ;; nil.  but that will prevent desirable side-effects from occurring in our
-      ;; CSS buffer so turn it off for a little while
-      (let ((inhibit-modification-hooks nil))
-        (erase-buffer)
-        ;; wrap the inserted text in a dummy CSS selector.  this allows us to
-        ;; properly calculate indentation as well as get capf to return
-        ;; everything we want it to
-        (insert (format "div{%s}" str))
-        (tree-sitter--after-change (point-min) (point-max) 0)
-        (font-lock-ensure (point-min) (point-max)))
-      (setq fontified-text-properties-list
+         (fontified-text-properties-list
+          (with-current-buffer tsx-mode--css-buffer
+            (unless (string= str (buffer-string))
+              (let ((inhibit-modification-hooks nil))
+                (erase-buffer)
+                ;; wrap the inserted text in a dummy CSS selector.  this allows
+                ;; us to properly calculate indentation as well as get capf to
+                ;; return everything we want it to
+                (insert (format "div{%s}" str))
+                (tree-sitter--after-change (point-min) (point-max) 0)
+                (font-lock-ensure (point-min) (point-max))))
             (maybe-object-intervals
              (buffer-substring
               (+ (length "div{") (point-min))
-              (- (point-max) (length "}"))))))
+              (- (point-max) (length "}")))))))
     ;; apply those fontification properties to this buffer
-    (with-silent-modifications
-      (dolist (range-with-property fontified-text-properties-list)
-        (set-text-properties
-         (+ beg (elt range-with-property 0))
-         (+ beg (elt range-with-property 1))
-         (elt range-with-property 2))))))
+    (when fontified-text-properties-list
+      (with-silent-modifications
+        (dolist (range-with-property fontified-text-properties-list)
+          ;; each list entry is '(range-start-pos range-end-pos (plist))
+          (set-text-properties
+           (+ beg (elt range-with-property 0))
+           (+ beg (elt range-with-property 1))
+           (elt range-with-property 2)))))))
 
 (defun tsx-mode--do-css-region-change (old-region new-region)
   "Internal function.

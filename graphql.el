@@ -128,6 +128,7 @@ Get the region beginning on, ending on, or including the line number at point
   "Internal function.
 Perform syntax highlighting of GQL in a separate buffer then copy text
 properties back to this buffer."
+  (tsx-mode--debug "fontify gql")
   (let* ((region tsx-mode--current-gql-region)
          (beg (max (point-min) (plist-get region :region-begin)))
          (end (min (point-max) (plist-get region :region-end)))
@@ -282,4 +283,3 @@ Perform completion-at-point inside the hidden GQL buffer and apply to this one."
      (tsx-mode--update-current-gql-region))
    nil t)
   (tsx-mode--gql-update-regions))
-
