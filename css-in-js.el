@@ -8,11 +8,17 @@
 
 
 (require 'css-mode)
+(require 'tree-sitter)
 (require 'tsi-css)
 
 
 (unless (fboundp 'object-intervals)
   (message "tsx-mode CSS fontification requires Emacs 28.1+, so we will do without it"))
+
+
+(defconst tsx-mode-css--archive
+  "https://github.com/orzechowskid/tree-sitter-css-in-js/releases/download/latest/"
+  "Location of tarball containing tree-sitter CSS-in-JS binaries.")
 
 
 (defcustom tsx-mode-css-force-highlighting nil
@@ -53,6 +59,10 @@ Each CSS-in-JS mode definition is a plist containing the following properties:
 :end - a string defining a regular expression for finding the end of a region
 :end-offset - a number defining the offset from the end of :end at which the
                region should end.")
+
+(defvar tsx-mode-css--lib-dir
+  (file-name-directory (locate-library "tsx-mode.el"))
+  "Location on disk of the directory containing this library.")
 
 (defvar-local tsx-mode-css-enter-region-hook
     nil
@@ -303,11 +313,8 @@ Perform completion-at-point inside the hidden CSS buffer and apply to this one."
     (setq tsx-mode--css-buffer
           (get-buffer-create " *tsx-mode css*"))
     (with-current-buffer tsx-mode--css-buffer
-      (scss-mode)
-      ;; scss-mode's native highlighting is nicer-looking than tree-sitter's
-      ;;      (tree-sitter-hl-mode)
-      (tsi-css-mode)))
-  (lsp-ensure-server 'css-ls)
+      (tsx-mode--css-mode)))
+  ;;  (lsp-ensure-server 'css-ls)
   (add-hook
    'tsx-mode-css-exit-region-hook
    'tsx-mode--css-exit-region
@@ -328,6 +335,71 @@ Perform completion-at-point inside the hidden CSS buffer and apply to this one."
    nil t)
   (tsx-mode--css-update-regions))
 
+
+(defun tsx-mode-css--filename-for-platform ()
+  "Internal function.
+
+Returns the name of a shared-library archive appropriate for the current OS
+and hardware."
+  (cond
+   ((eq system-type "windows")
+    "windows.tar.gz")
+   ((eq system-type "darwin")
+    "macos.tar.gz")
+   (t "linux.tar.gz")))
+
+(defun tsx-mode-css--fetch-archive (&optional force)
+  "Downloads and uncompresses a platform-appropriate archive containing a tree-
+sitter parser.  Setting FORCE to `t' will re-download the parser even if one is
+already present on disk."
+
+  (let* ((filename
+          (tsx-mode-css--filename-for-platform))
+         (lib-dir
+          tsx-mode-css--lib-dir)
+         (fs-path
+          (file-name-concat lib-dir filename)))
+    (when (or (not (file-exists-p fs-path))
+              force)
+      (message "fetching CSS-in-JS parser binary...")
+
+      (url-copy-file
+       (concat tsx-mode-css--archive filename) ; remote
+       fs-path ; local
+       t) ; overwrite
+      (call-process
+       "tar"
+       nil nil nil
+       "-C" lib-dir "-zxf" fs-path))))
+
+(defun tsx-mode-css-get-grammar ()
+  "Attempts to locate or download an appropriate grammar for CSS-in-JS."
+
+  (unless
+      (condition-case nil
+          (tree-sitter-load 'css_in_js)
+        (error nil))
+    ;; not found on tree-sitter load path; go get it
+    (message "css-in-js grammar not found")
+    (tsx-mode-css--fetch-archive)
+    (add-to-list 'tree-sitter-load-path tsx-mode-css--lib-dir)
+    t))
+
+
+(define-derived-mode
+  tsx-mode--css-mode scss-mode "TSX+CSS"
+  "Internal mode used only for associating our hidden buffer with a tree-sitter
+grammar."
+  :group 'tsx-mode
+
+  (tree-sitter-mode t)
+  (tsi-css-mode))
+
+
+;; associate our css buffer's major mode with a css-in-js tree-sitter grammar if
+;; one is found, or fall back to the css grammar if not
 (add-to-list
  'tree-sitter-major-mode-language-alist
- '(scss-mode . css))
+ (if (tsx-mode-css-get-grammar)
+     '(tsx-mode--css-mode . css_in_js)
+   '(tsx-mode--css-mode . css)))
