@@ -1,6 +1,6 @@
 # tsx-mode.el: a batteries-included major mode for TSX/JSX files
 
-use lsp-mode for code analysis and completion, tree-sitter for highlighting and indentation, and some godawful hacks for CSS-in-JS support.  Aims to provide proper JSX/TSX indentation and syntax highlighting as well as some fancy features related to CSS-in-JS.
+use lsp-mode for code analysis and completion, tree-sitter for highlighting/indentation/code-folding, and some godawful hacks for CSS-in-JS support.  Aims to provide proper JSX/TSX indentation and syntax highlighting as well as some fancy features related to CSS-in-JS.
 
 Screenshot:
 
