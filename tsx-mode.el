@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 2.1.0
+;;; Version: 3.0.0
 
 ;;; Author: Dan Orzechowski
 
@@ -32,6 +32,7 @@
   :group 'programming
   :prefix "tsx-mode-")
 
+
 (defcustom tsx-mode-tsx-auto-tags nil
   "When set to t, typing an open angle-bracket ('<') will also insert '/>` to
 create a self-closing element tag.  Typing a close angle-bracket ('>') will, if
@@ -41,11 +42,33 @@ closing tags."
   :group 'tsx-mode)
 
 (defcustom tsx-mode-fold-tree-queries
+  ;; TODO: figure out how to not require these to be named, since the names don't
+  ;; actually matter
   '("((statement_block) @fb)"
     "(call_expression (template_string) @ts)")
-  "List of tree-sitter queries for which to create Origami code-folding nodes."
+  "List of tree-sitter queries for which to create Origami code-folding nodes.
+Each query should point to a tree-sitter node and should provide a name for the
+node to be folded (though the value of that name doesn't matter)"
   :type '(repeat string)
   :group 'tsx-mode)
+
+
+(defconst tsx-mode--lib-dir
+  (file-name-directory (locate-library "tsx-mode.el"))
+  "Internal constant.
+Location on disk of the directory containing this library.")
+
+(defconst tsx-mode--filename-for-platform
+  (cond
+   ((eq system-type "windows")
+    "windows.tar.gz")
+   ((eq system-type "darwin")
+    ;; TODO: M1 mac support once the binaries are built
+    "macos.tar.gz")
+   (t "linux.tar.gz"))
+  "Internal constant.
+Returns the name of a shared-library archive appropriate for the current OS
+and hardware.")
 
 
 (defvar-local tsx-mode-debug
@@ -59,6 +82,31 @@ to *Messages*.")
 Print messages only when `tsx-mode-debug` is `t` in this buffer."
   (when tsx-mode-debug
     (apply 'message args)))
+
+
+(defun tsx-mode-download-and-unpack (parser remote-dir)
+  "Internal function.
+Downloads and unpacks a tarball containing a tree-sitter shared library.  PARSER
+is a symbol describing the parser to load, and REMOTE-DIR is the remote directory
+containing it."
+  (let* ((filename tsx-mode--filename-for-platform)
+         (remote-url (concat remote-dir filename))
+         (basename (symbol-name parser))
+         (archive-name
+          (concat basename "-" filename))
+         (destination-path
+          (file-name-concat
+           tsx-mode--lib-dir
+           archive-name)))
+    ;; `message' here, not `tsx-mode--debug' - we definitely want to inform the
+    ;; user that we're downloading something from the internet
+    (message "Fetching %s parser from %s..." basename remote-dir)
+
+    (url-copy-file remote-url destination-path t)
+    (call-process
+     "tar"
+     nil nil nil
+     "-C" tsx-mode--lib-dir "-zxf" destination-path)))
 
 (defun tsx-mode--do-fontification (beg end)
   "Internal function.
@@ -102,31 +150,10 @@ Calculate indentation for the current line."
 		      'tsi-typescript--get-indent-for-current-line)))
       (tsx-mode--debug "TS indentation: %d" ts-indent)
       ts-indent)
-    ;; indentation for GQL
-    (let ((gql-indent
-           (if (and tsx-mode--current-gql-region
-                    (save-excursion
-                      (end-of-line)
-                      (tsx-mode--gql-region-for-point)))
-               (tsx-mode--indent-gql-at-pos (point))
-             0)))
+    (let ((gql-indent (tsx-mode--indent-gql-at-point)))
       (tsx-mode--debug "GQL indentation: %d" gql-indent)
       gql-indent)
-    ;; indentation for css tree-sitter node
-    (let ((css-indent
-	   (if (and tsx-mode--current-css-region
-		    (save-excursion
-		      (end-of-line)
-		      (tsx-mode--css-region-for-point)))
-	       ;; hack: catch incorrect indentation caused by ERROR nodes in the CST
-	       ;; belonging to the hidden CSS buffer and try to do the right thing
-	       (max
-		tsi-css-indent-offset
-		(tsx-mode--indent-css-at-pos
-		 (+ 1
-		    (length "div{")
-		    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-	     0)))
+    (let ((css-indent (tsx-mode--indent-css-at-point)))
       (tsx-mode--debug "CSS indentation: %d" css-indent)
       css-indent))))
 
@@ -193,10 +220,15 @@ to point."
   "Internal function.
 Delegate to either css-mode's capf or lsp-mode's capf depending on where point
 is."
-  (if (or (not tsx-mode--current-css-region)
-	  (tsx-mode--looking-at-node-p 'template_substitution))
-      (lsp-completion-at-point)
-    (tsx-mode--css-completion-at-point)))
+  (cond
+   ((tsx-mode--looking-at-node-p 'template_substitution)
+    (lsp-completion-at-point))
+   (tsx-mode--current-css-region
+    (tsx-mode--css-completion-at-point))
+   (tsx-mode--current-gql-region
+    (tsx-mode--gql-completion-at-point))
+   (t
+    (lsp-completion-at-point))))
 
 (defun tsx-mode--make-captures-tree (captures create start end)
   "Internal function.
@@ -362,6 +394,22 @@ defaults to (`point') if not provided."
 	(coverlay-watch-file coverage-file))
       (coverlay-minor-mode 'toggle))))
 
+(defun tsx-mode-get-parser (parser remote-dir)
+  "Attempts to load the provided parser specified by the PARSER symbol, first
+by checking locally then by downloading a platform-specific shared library
+located at REMOTE-DIR.  Returns t if successful, nil otherwise."
+  (or
+   (condition-case nil
+       (tree-sitter-load parser)
+     (error nil)
+     (:success t))
+   (condition-case nil
+       (progn
+         (tsx-mode-download-and-unpack parser remote-dir)
+         (add-to-list 'tree-sitter-load-path tsx-mode--lib-dir))
+     (error nil)
+     (:success t))))
+
 (defun tsx-mode--setup-buffer ()
   "Internal function.
 Hook to be called to finish configuring the current buffer after lsp-mode has
@@ -450,9 +498,11 @@ been enabled."
     (lsp)
     (lsp-completion-mode t))
 
+
 (when load-file-name
   (let ((tsx-mode-dir (file-name-directory load-file-name)))
     (load-file (concat tsx-mode-dir "graphql.el"))
     (load-file (concat tsx-mode-dir "css-in-js.el"))))
+
 
 (provide 'tsx-mode)

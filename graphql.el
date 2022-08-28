@@ -10,15 +10,21 @@
 (require 'graphql-mode)
 
 
+(defconst tsx-mode--gql-archive
+  "https://github.com/orzechowskid/tree-sitter-graphql/releases/download/latest/"
+  "Location of tarballs containing tree-sitter GraphQL shared libraries.")
+
+
 (defcustom tsx-mode-gql-force-highlighting nil
   "When set to t, GraphQL tagged-template strings will have syntax highlighting
 applied to them even if point is no longer inside of them."
   :type 'boolean
   :group 'tsx-mode)
 
+
 (defvar tsx-mode-gql-region-delimiters
   '((:start "gql`"
-     :start-offset 0
+     :start-offset 1
      :end "`;"
      :end-offset -1))
   "A list of information defining GraphQL regions.
@@ -41,10 +47,16 @@ Each GraphQL mode definition is a plist containing the following properties:
     nil
   "A hook which gets run when point is entering a GraphQL region.")
 
+
+(defvar tsx-mode--gql-tree-sitter-support
+  nil
+  "Internal variable.  t if a tree-sitter GraphQL shared library can be used.")
+
 (defvar tsx-mode--gql-buffer
     nil
   "Internal variable.
 Super secret buffer for performing gql-related tasks.")
+
 
 (defvar-local tsx-mode--current-gql-region
     nil
@@ -110,36 +122,30 @@ Get the region at point (if any)."
    tsx-mode--gql-regions
    nil))
 
-(defun tsx-mode--gql-region-for-line ()
+(defun tsx-mode--gql-buffer-sync (region)
   "Internal function.
-Get the region beginning on, ending on, or including the line number at point
-(if any)."
-  (or
-   tsx-mode--current-gql-region
-   (seq-find
-    (lambda (elt)
-      (and (>= (line-number-at-pos)
-               (line-number-at-pos (plist-get elt :region-start)))
-           (<= (line-number-at-pos)
-               (line-number-at-pos) (plist-get elt :region-end))))
-    tsx-mode--gql-regions)))
+Ensures hidden buffer is up-to-date with text of the provided region"  
+  (let ((str
+         (buffer-substring-no-properties
+          (max (point-min) (plist-get region :region-begin))
+          (min (point-max) (- (plist-get region :region-end) 1)))))
+    (with-current-buffer tsx-mode--gql-buffer
+      (unless (string= str (buffer-string))
+        (erase-buffer)
+        (insert str)
+        (when tsx-mode--gql-tree-sitter-support
+          (tree-sitter--after-change (point-min) (point-max) 0))
+        (font-lock-ensure (point-min) (point-max))))))
 
 (defun tsx-mode--fontify-current-gql-region ()
   "Internal function.
 Perform syntax highlighting of GQL in a separate buffer then copy text
 properties back to this buffer."
   (tsx-mode--debug "fontify gql")
-  (let* ((region tsx-mode--current-gql-region)
-         (beg (max (point-min) (plist-get region :region-begin)))
-         (end (min (point-max) (plist-get region :region-end)))
-         (str (buffer-substring-no-properties beg (- end 1)))
+  (tsx-mode--gql-buffer-sync tsx-mode--current-gql-region)
+  (let* ((begin (plist-get tsx-mode--current-gql-region :region-begin))
          (fontified-text-properties-list
           (with-current-buffer tsx-mode--gql-buffer
-            (unless (string= str (buffer-string))
-              (let ((inhibit-modification-hooks nil))
-                (erase-buffer)
-                (insert str)
-                (font-lock-ensure (point-min) (point-max))))
             (maybe-object-intervals
              (buffer-substring
               (point-min)
@@ -150,8 +156,8 @@ properties back to this buffer."
         (dolist (range-with-property fontified-text-properties-list)
           ;; each list entry is '(range-start-pos range-end-pos (plist))
           (set-text-properties
-           (+ beg (elt range-with-property 0))
-           (+ beg (elt range-with-property 1))
+           (+ begin (elt range-with-property 0))
+           (+ begin (elt range-with-property 1))
            (elt range-with-property 2)))))))
 
 (defun tsx-mode--do-gql-region-change (old-region new-region)
@@ -205,26 +211,28 @@ if necessary."
         nil)
        (t nil)))))
 
-(defun tsx-mode--indent-gql-at-pos (gql-buffer-pos)
+(defun tsx-mode--indent-gql-at-point ()
   "Internal function.
 Calculate indentation for line GQL-BUFFER-POS in the GraphQL buffer."
-  (let ((line-offset
-         (- (line-number-at-pos)
-            (line-number-at-pos
-             (plist-get tsx-mode--current-gql-region :region-begin)))))
-    (with-current-buffer tsx-mode--gql-buffer
-      (goto-line (1+ line-offset))
-      (graphql-indent-line)
-      (end-of-line)
-      (back-to-indentation)
-      (+ (current-column)
-         (if (= line-offset 1) ; graphql-mode doesn't properly indent the first line
-             graphql-indent-level 
-           0)))))
+  (if tsx-mode--current-gql-region
+      (let ((buffer-offset
+             (+ 1
+                (- (point)
+                   (plist-get tsx-mode--current-gql-region :region-begin)))))
+        (with-current-buffer tsx-mode--gql-buffer
+          (goto-char buffer-offset)
+          (graphql-indent-line)
+          (back-to-indentation)
+          (+ (current-column)
+             (if (= (line-number-at-pos (point)) 1)
+                 graphql-indent-level
+               0))))
+    0))
 
 (defun tsx-mode--gql-enter-region (new-region)
   "Internal function.
 A hook function registered at `tsx-mode-gql-enter-region-hook'."
+  (tsx-mode--gql-buffer-sync new-region)
   ;; don't forget to bounds-check in case the region has shrunk due to a kill
   (jit-lock-refontify
    (min (plist-get new-region :region-begin) (point-max))
@@ -242,9 +250,10 @@ A hook function registered at `tsx-mode-gql-exit-region-hook'."
   "Internal function.
 Perform completion-at-point inside the hidden GQL buffer and apply to this one."
   (let* ((point-offset
-          (plist-get tsx-mode--current-gql-region :region-begin))
+          (- (point) (plist-get tsx-mode--current-gql-region :region-begin)))
          (completion
           (with-current-buffer tsx-mode--gql-buffer
+            (message "point offset: %d" point-offset)
             (goto-char point-offset)
             (graphql-completion-at-point))))
     ;; translate gql-buffer coordinates into main-buffer coordinates
@@ -255,7 +264,7 @@ Perform completion-at-point inside the hidden GQL buffer and apply to this one."
     completion))
 
 (define-minor-mode tsx-mode-gql
-  "A tsx-mode minor mode for GraphQL."
+  "A tsx-mode minor mode for GraphQL tagged-template strings."
   :delight nil
   :group 'tsx-mode
   (unless tsx-mode--gql-buffer
@@ -263,7 +272,7 @@ Perform completion-at-point inside the hidden GQL buffer and apply to this one."
     (setq tsx-mode--gql-buffer
           (get-buffer-create " *tsx-mode gql*"))
     (with-current-buffer tsx-mode--gql-buffer
-      (graphql-mode)))
+      (tsx-mode--gql-mode)))
   (add-hook
    'tsx-mode-gql-exit-region-hook
    'tsx-mode--gql-exit-region
@@ -283,3 +292,20 @@ Perform completion-at-point inside the hidden GQL buffer and apply to this one."
      (tsx-mode--update-current-gql-region))
    nil t)
   (tsx-mode--gql-update-regions))
+
+
+(define-derived-mode
+  tsx-mode--gql-mode graphql-mode "TSX+GQL"
+  "Internal mode used by our hidden GraphQL buffer, to avoid clobbering any other
+user-defined major-mode mappings."
+  :group 'tsx-mode
+  (when tsx-mode--gql-tree-sitter-support
+    (tree-sitter-mode t)))
+
+
+;; determine if we can use tree-sitter to do GraphQL things
+(when (tsx-mode-get-parser 'graphql tsx-mode--gql-archive)
+  (setq tsx-mode--gql-tree-sitter-support t)
+  (add-to-list
+   'tree-sitter-major-mode-language-alist
+   '(tsx-mode--gql-mode . graphql)))
