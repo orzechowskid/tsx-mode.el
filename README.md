@@ -12,7 +12,7 @@ Emacs 27 (or, better, 28.1+) with the following packages installed:
  - [`company`](https://github.com/company-mode/company-mode)
  - [`coverlay`](https://github.com/twada/coverlay.el)
  - [`origami.el`](https://github.com/gregsexton/origami.el)
-1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.  use the `master` branch if you want the latest stable code; use the (possibly unstable) `next` branch if you want the latest features.
+1. Install: download this package and place the .el files from this repository in a directory on your `load-path`.  use the `master` branch if you want the latest stable code; use the (possibly unstable) `next` branch if you want the latest features.
 
 > or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 2. Require: `(require 'tsx-mode)`
