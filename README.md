@@ -13,7 +13,8 @@
 
 ## Installation
 
-0. Dependencies:
+### Dependencies
+
 Emacs 27 (or, better, 28.1+) with the following packages installed:
  - [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/) (and tree-sitter-langs)
  - [`tsi.el`](https://github.com/orzechowskid/tsi.el)
@@ -22,11 +23,20 @@ Emacs 27 (or, better, 28.1+) with the following packages installed:
  - [`coverlay`](https://github.com/twada/coverlay.el)
  - [`origami.el`](https://github.com/gregsexton/origami.el)
  - [`graphql-mode`](https://github.com/davazp/graphql-mode)
-1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
+
+### Download
+
+download this package and place the .el files from it in a directory on your load-path. use the `master` branch if you want the latest stable code; use the (possibly unstable) `next` branch if you want the latest features.
 
 > or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
-2. Require: `(require 'tsx-mode)`
-3. Enable: `(tsx-mode t)`
+
+### Require
+
+`(require 'tsx-mode)`
+
+### Enable
+
+`(tsx-mode t)`
 
 ## Keybindings
 
