@@ -1,7 +1,5 @@
 # tsx-mode.el: a batteries-included major mode for TSX/JSX files
 
-Screenshot:
-
 ![](https://repository-images.githubusercontent.com/461083728/2a857234-2563-48bb-9b1f-6a69266cb543)
 
 ## Features
