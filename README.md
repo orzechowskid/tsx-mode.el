@@ -1,21 +1,29 @@
 # tsx-mode.el: a batteries-included major mode for TSX/JSX files
 
-use lsp-mode for code analysis and completion, tree-sitter for highlighting/indentation/code-folding, and some godawful hacks for CSS-in-JS support.  Aims to provide proper JSX/TSX indentation and syntax highlighting as well as some fancy features related to CSS-in-JS.
-
 Screenshot:
 
-![](https://repository-images.githubusercontent.com/461083728/1bc1d312-661c-40b9-abda-97c8e7f9e4b2)
+![](https://repository-images.githubusercontent.com/461083728/2a857234-2563-48bb-9b1f-6a69266cb543)
+
+## Features
+- code analysis and completion
+- syntax highlighting
+- indentation (including JSX/TSX)
+- code folding
+- code-coverage overlay
+- syntax highlighting, indentation, and code completion for CSS-in-JS tagged template strings
+- syntax highlighting and indentation for GraphQL query tagged template strings
 
 ## Installation
 
 0. Dependencies:
 Emacs 27 (or, better, 28.1+) with the following packages installed:
- - [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/)
+ - [`tree-sitter`](https://emacs-tree-sitter.github.io/installation/) (and tree-sitter-langs)
  - [`tsi.el`](https://github.com/orzechowskid/tsi.el)
  - [`lsp-mode`](https://github.com/emacs-lsp/lsp-mode)
  - [`company`](https://github.com/company-mode/company-mode)
  - [`coverlay`](https://github.com/twada/coverlay.el)
  - [`origami.el`](https://github.com/gregsexton/origami.el)
+ - [`graphql-mode`](https://github.com/davazp/graphql-mode)
 1. Install: download this package and place `tsx-mode.el` inside a directory on your `load-path`.
 
 > or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
@@ -34,19 +42,16 @@ all tsx-mode keybindings live under the `C-c t` prefix.
 
 ## Configuration
 
-Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
-
-You may also want to customize variables in the `coverlay` customization group if you enable code coverage.
+Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.  Indentation can be found in the `tsi-typescript` and `tsi-css` customization groups, and code-coverage overlays in the `coverlay` customization group.
 
 ## Bugs and limitations
 
 tons!
 
 - lsp-mode is currently the only supported LSP client.
-- TS/TSX indentation might not be quite right.  (if you notice something, please open an issue against [tsi.el](https://github.com/orzechowskid/tsi.el))
-- CSS indentation might not be quite right either.  (if you notice something, please open an issue against this repo)
+- Indentation is handled by [tsi.el](https://github.com/orzechowskid/tsi.el); if you see something not quite right with indentation, please open an issue there.
 - only a couple of CSS-in-JS formats are currently supported.
-- CSS fontification relies on a feature introduced in Emacs 28.1, so on Emacs 27 CSS fragments won't be fontified.
+- CSS and gql syntax highlighting rely on a feature introduced in Emacs 28.1, so on Emacs 27 these fragments won't be fontified.
 
 ## License
 
