@@ -2,10 +2,6 @@
 
 use lsp-mode for code analysis and completion, tree-sitter for highlighting/indentation/code-folding, and some godawful hacks for CSS-in-JS support.  Aims to provide proper JSX/TSX indentation and syntax highlighting as well as some fancy features related to CSS-in-JS.
 
-Screenshot:
-
-![](https://repository-images.githubusercontent.com/461083728/1bc1d312-661c-40b9-abda-97c8e7f9e4b2)
-
 ## Installation
 
 0. Dependencies:
