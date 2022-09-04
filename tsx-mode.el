@@ -462,14 +462,14 @@ located at REMOTE-DIR.  Returns t if successful, nil otherwise."
     (setq-local indent-line-function 'tsx-mode--indent)
     (jit-lock-register
      'tsx-mode--do-fontification)
-    ;; (add-hook
-    ;;  'post-command-hook
-    ;;  'tsx-mode--post-command-hook
-    ;;  nil t)
-    ;; (add-hook
-    ;;  'jit-lock-functions
-    ;;  'tsx-mode--do-fontification
-    ;;  nil t)
+    (add-hook
+     'post-command-hook
+     'tsx-mode--post-command-hook
+     nil t)
+    (add-hook
+     'jit-lock-functions
+     'tsx-mode--do-fontification
+     nil t)
     (add-to-list
      'tsx-mode--indent-fns
      'tsx-mode--indent-ts-at-point)
