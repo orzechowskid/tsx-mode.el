@@ -326,6 +326,9 @@ Perform completion-at-point inside the hidden CSS buffer and apply to this one."
    'post-command-hook
    'tsx-mode--update-current-css-region
    nil t)
+  (add-to-list
+   'tsx-mode--indent-fns
+   'tsx-mode--indent-css-at-point)
   (add-hook
    'after-change-functions
    (lambda (beg end old-text-length)

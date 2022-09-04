@@ -76,6 +76,13 @@ and hardware.")
   "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
 to *Messages*.")
 
+(defvar-local tsx-mode--indent-fns
+  '()
+  "Internal variable.
+List of functions to call during indentation.  Functions in this list are called
+with no arguments and must return an integer representing the number of
+(additional) columns of indentation to apply to the current line.")
+
 
 (defun tsx-mode--debug (&rest args)
   "Internal function.
@@ -139,23 +146,23 @@ nil otherwise."
 A hook function registered at `post-command-hook'."
   (tsx-mode--configure-region-specific-vars))
 
+(defun tsx-mode--indent-ts-at-point ()
+  "Internal function.
+Calculate indentation amount for JS/TS at the current point."
+  (tsi-calculate-indentation
+   'tsi-typescript--get-indent-for
+   'tsi-typescript--get-indent-for-current-line))
+
 (defun tsx-mode--indent ()
   "Internal function.
 Calculate indentation for the current line."
   (tsi--indent-line-to
-   (+
-    ;; indentation for typescript tree-sitter node
-    (let ((ts-indent (tsi-calculate-indentation
-		      'tsi-typescript--get-indent-for
-		      'tsi-typescript--get-indent-for-current-line)))
-      (tsx-mode--debug "TS indentation: %d" ts-indent)
-      ts-indent)
-    (let ((gql-indent (tsx-mode--indent-gql-at-point)))
-      (tsx-mode--debug "GQL indentation: %d" gql-indent)
-      gql-indent)
-    (let ((css-indent (tsx-mode--indent-css-at-point)))
-      (tsx-mode--debug "CSS indentation: %d" css-indent)
-      css-indent))))
+   (seq-reduce
+    '+
+    (mapcar (lambda (el)
+              (or (funcall el) 0))
+            tsx-mode--indent-fns)
+    0)))
 
 (defun tsx-mode--configure-region-specific-vars ()
   "Internal function.
@@ -449,6 +456,9 @@ been enabled."
    'jit-lock-functions
    'tsx-mode--do-fontification
    nil t)
+  (add-to-list
+   'tsx-mode--indent-fns
+   'tsx-mode--indent-ts-at-point)
   (setq
    completion-at-point-functions
    '(tsx-mode--completion-at-point lsp-completion-at-point))
