@@ -285,57 +285,74 @@ A hook function registered at `tsx-mode-css-exit-region-hook'."
 (defun tsx-mode--css-completion-at-point ()
   "Internal function.
 Perform completion-at-point inside the hidden CSS buffer and apply to this one."
-  (let* ((point-offset
-          (+ 1
-             (length "div{")
-             (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
-         (completion
-          (with-current-buffer tsx-mode--css-buffer
-            (goto-char point-offset)
-            (css-completion-at-point)))
-         (offset (+ (plist-get tsx-mode--current-css-region :region-begin)
-                    (- (+ 1 (length "div{"))))))
-    ;; translate css-buffer coordinates into main-buffer coordinates
-    (setcar (nthcdr 1 completion)
-            (+ (cadr completion) offset))
-    (setcar (nthcdr 0 completion)
-            (+ (car completion) offset))
-    completion))
+  (tsx-mode--debug "CSS completion?")
+  (when (and tsx-mode--current-css-region
+             (not (tsx-mode--looking-at-node-p 'template_substitution)))
+    (let* ((point-offset
+            (+ 1
+               (length "div{")
+               (- (point) (plist-get tsx-mode--current-css-region :region-begin))))
+           (completion
+            (with-current-buffer tsx-mode--css-buffer
+              (goto-char point-offset)
+              (css-completion-at-point)))
+           (offset (+ (plist-get tsx-mode--current-css-region :region-begin)
+                      (- (+ 1 (length "div{"))))))
+      ;; translate css-buffer coordinates into main-buffer coordinates
+      (setcar (nthcdr 1 completion)
+              (+ (cadr completion) offset))
+      (setcar (nthcdr 0 completion)
+              (+ (car completion) offset))
+      completion)))
 
 
 (define-minor-mode tsx-mode-css
   "A tsx-mode minor mode for CSS-in-JS."
   :delight nil
+  :lighter ""
   :group 'tsx-mode
-  (unless tsx-mode--css-buffer
-    (tsx-mode--debug "setting up css buffer...")
-    (setq tsx-mode--css-buffer
-          (get-buffer-create " *tsx-mode css*"))
-    (with-current-buffer tsx-mode--css-buffer
-      (tsx-mode--css-mode)))
-  ;;  (lsp-ensure-server 'css-ls)
-  (add-hook
-   'tsx-mode-css-exit-region-hook
-   'tsx-mode--css-exit-region
-   nil t)
-  (add-hook
-   'tsx-mode-css-enter-region-hook
-   'tsx-mode--css-enter-region
-   nil t)
-  (add-hook
-   'post-command-hook
-   'tsx-mode--update-current-css-region
-   nil t)
-  (add-to-list
-   'tsx-mode--indent-fns
-   'tsx-mode--indent-css-at-point)
-  (add-hook
-   'after-change-functions
-   (lambda (beg end old-text-length)
-     (tsx-mode--css-update-regions)
-     (tsx-mode--update-current-css-region))
-   nil t)
-  (tsx-mode--css-update-regions))
+  (cond
+   (tsx-mode-css
+    (unless tsx-mode--css-buffer
+      (tsx-mode--debug "setting up css buffer...")
+      (setq tsx-mode--css-buffer
+            (get-buffer-create " *tsx-mode css*"))
+      (with-current-buffer tsx-mode--css-buffer
+        (tsx-mode--css-mode)))
+    (add-hook
+     'tsx-mode-css-exit-region-hook
+     'tsx-mode--css-exit-region
+     nil t)
+    (add-hook
+     'tsx-mode-css-enter-region-hook
+     'tsx-mode--css-enter-region
+     nil t)
+    (add-hook
+     'post-command-hook
+     'tsx-mode--update-current-css-region
+     nil t)
+    (add-to-list
+     'tsx-mode--indent-fns
+     'tsx-mode--indent-css-at-point)
+    (add-hook
+     'after-change-functions
+     (lambda (beg end old-text-length)
+       (tsx-mode--css-update-regions)
+       (tsx-mode--update-current-css-region))
+     nil t)
+    (tsx-mode--css-update-regions)
+    ;; lsp-mode attempts to place its own completion function at the head of
+    ;; this list, but we don't want that
+    (add-hook
+     'lsp-completion-mode-hook
+     (lambda ()
+       (remove-hook
+        'completion-at-point-functions
+        'tsx-mode--css-completion-at-point)
+       (add-to-list
+        'completion-at-point-functions
+        'tsx-mode--css-completion-at-point))))
+   (t nil)))
 
 
 (define-derived-mode

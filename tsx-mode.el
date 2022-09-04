@@ -16,7 +16,6 @@
 
 (require 'coverlay)
 (require 'lsp)
-(require 'lsp-completion)
 ;; origami depends on some now-deprecated cl functions and there's not much we
 ;; can do about that
 (let ((byte-compile-warnings '((not cl-functions))))
@@ -223,20 +222,6 @@ to point."
 	t
       nil)))
 
-(defun tsx-mode--completion-at-point ()
-  "Internal function.
-Delegate to either css-mode's capf or lsp-mode's capf depending on where point
-is."
-  (cond
-   ((tsx-mode--looking-at-node-p 'template_substitution)
-    (lsp-completion-at-point))
-   (tsx-mode--current-css-region
-    (tsx-mode--css-completion-at-point))
-   (tsx-mode--current-gql-region
-    (tsx-mode--gql-completion-at-point))
-   (t
-    (lsp-completion-at-point))))
-
 (defun tsx-mode--make-captures-tree (captures create start end)
   "Internal function.
 Make a tree from CAPTURES using CREATE that are between START and END.  The
@@ -417,54 +402,6 @@ located at REMOTE-DIR.  Returns t if successful, nil otherwise."
      (error nil)
      (:success t))))
 
-(defun tsx-mode--setup-buffer ()
-  "Internal function.
-Hook to be called to finish configuring the current buffer after lsp-mode has
-been enabled."
-  ;; set up tree-sitter and related
-  (tree-sitter-require 'tsx)
-  (add-to-list
-   'tree-sitter-major-mode-language-alist
-   '(tsx-mode . tsx))
-  (setq tree-sitter-hl-default-patterns
-        (tree-sitter-langs--hl-default-patterns 'tsx))
-  (tsi-typescript-mode)
-  (tree-sitter-hl-mode)
-  ;; set up code-folding
-  (origami-mode t)
-  (add-to-list
-   'origami-parser-alist
-   '(tsx-mode . tsx-mode--origami-parser))
-  (set (make-local-variable 'comment-use-syntax) nil)
-  (set (make-local-variable 'comment-region-function)
-       'tsx-mode--comment-region-function)
-  (set (make-local-variable 'uncomment-region-function)
-       'tsx-mode--uncomment-region-function)
-  (make-local-variable 'comment-start)
-  (make-local-variable 'comment-end)
-  (make-local-variable 'comment-start-skip)
-  (make-local-variable 'comment-end-skip)
-  (make-local-variable 'indent-line-function)
-  (setq-local indent-line-function 'tsx-mode--indent)
-  (jit-lock-register
-   'tsx-mode--do-fontification)
-  (add-hook
-   'post-command-hook
-   'tsx-mode--post-command-hook
-   nil t)
-  (add-hook
-   'jit-lock-functions
-   'tsx-mode--do-fontification
-   nil t)
-  (add-to-list
-   'tsx-mode--indent-fns
-   'tsx-mode--indent-ts-at-point)
-  (setq
-   completion-at-point-functions
-   '(tsx-mode--completion-at-point lsp-completion-at-point))
-  (tsx-mode-css)
-  (tsx-mode-gql))
-
 
 ;;;###autoload
 (define-derived-mode
@@ -478,7 +415,6 @@ been enabled."
                     ;; dollar signs are allowed in symbol names
                     (modify-syntax-entry ?$ "_" table)
                     table)
-
     (define-key
      tsx-mode-map
      (kbd "C-c t f")
@@ -499,14 +435,48 @@ been enabled."
      tsx-mode-map
      (kbd ">")
      'tsx-mode-tsx-maybe-close-tag)
-    ;; configure things after lsp-mode is finished doing whatever it does
-    (add-hook
-     'lsp-completion-mode-hook
-     'tsx-mode--setup-buffer
-     100 t)
+    (tree-sitter-require 'tsx)
+    (add-to-list
+     'tree-sitter-major-mode-language-alist
+     '(tsx-mode . tsx))
+    (setq-local
+     tree-sitter-hl-default-patterns
+     (tree-sitter-langs--hl-default-patterns 'tsx))
+    (tsi-typescript-mode)
+    (tree-sitter-hl-mode)
+    ;; set up code-folding
+    (origami-mode t)
+    (add-to-list
+     'origami-parser-alist
+     '(tsx-mode . tsx-mode--origami-parser))
+    (set (make-local-variable 'comment-use-syntax) nil)
+    (set (make-local-variable 'comment-region-function)
+         'tsx-mode--comment-region-function)
+    (set (make-local-variable 'uncomment-region-function)
+         'tsx-mode--uncomment-region-function)
+    (make-local-variable 'comment-start)
+    (make-local-variable 'comment-end)
+    (make-local-variable 'comment-start-skip)
+    (make-local-variable 'comment-end-skip)
+    (make-local-variable 'indent-line-function)
+    (setq-local indent-line-function 'tsx-mode--indent)
+    (jit-lock-register
+     'tsx-mode--do-fontification)
+    ;; (add-hook
+    ;;  'post-command-hook
+    ;;  'tsx-mode--post-command-hook
+    ;;  nil t)
+    ;; (add-hook
+    ;;  'jit-lock-functions
+    ;;  'tsx-mode--do-fontification
+    ;;  nil t)
+    (add-to-list
+     'tsx-mode--indent-fns
+     'tsx-mode--indent-ts-at-point)
+    (tsx-mode-css)
+    (tsx-mode-gql)
     (lsp-ensure-server 'ts-ls)
-    (lsp)
-    (lsp-completion-mode t))
+    (lsp))
 
 
 (when load-file-name

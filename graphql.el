@@ -246,55 +246,43 @@ A hook function registered at `tsx-mode-gql-exit-region-hook'."
    (min (plist-get old-region :region-begin) (point-max))
    (min (plist-get old-region :region-end) (point-max))))
 
-(defun tsx-mode--gql-completion-at-point ()
-  "Internal function.
-Perform completion-at-point inside the hidden GQL buffer and apply to this one."
-  (let* ((point-offset
-          (- (point) (plist-get tsx-mode--current-gql-region :region-begin)))
-         (completion
-          (with-current-buffer tsx-mode--gql-buffer
-            (message "point offset: %d" point-offset)
-            (goto-char point-offset)
-            (graphql-completion-at-point))))
-    ;; translate gql-buffer coordinates into main-buffer coordinates
-    (setcar (nthcdr 1 completion)
-            (cadr completion))
-    (setcar (nthcdr 0 completion)
-            (car completion))
-    completion))
 
 (define-minor-mode tsx-mode-gql
   "A tsx-mode minor mode for GraphQL tagged-template strings."
   :delight nil
+  :lighter ""
   :group 'tsx-mode
-  (unless tsx-mode--gql-buffer
-    (tsx-mode--debug "setting up gql buffer...")
-    (setq tsx-mode--gql-buffer
-          (get-buffer-create " *tsx-mode gql*"))
-    (with-current-buffer tsx-mode--gql-buffer
-      (tsx-mode--gql-mode)))
-  (add-hook
-   'tsx-mode-gql-exit-region-hook
-   'tsx-mode--gql-exit-region
-   nil t)
-  (add-hook
-   'tsx-mode-gql-enter-region-hook
-   'tsx-mode--gql-enter-region
-   nil t)
-  (add-hook
-   'post-command-hook
-   'tsx-mode--update-current-gql-region
-   nil t)
-  (add-to-list
-   'tsx-mode--indent-fns
-   'tsx-mode--indent-gql-at-point)
-  (add-hook
-   'after-change-functions
-   (lambda (beg end old-text-length)
-     (tsx-mode--gql-update-regions)
-     (tsx-mode--update-current-gql-region))
-   nil t)
-  (tsx-mode--gql-update-regions))
+  (cond
+   (tsx-mode-gql
+    (unless tsx-mode--gql-buffer
+      (tsx-mode--debug "setting up gql buffer...")
+      (setq tsx-mode--gql-buffer
+            (get-buffer-create " *tsx-mode gql*"))
+      (with-current-buffer tsx-mode--gql-buffer
+        (tsx-mode--gql-mode)))
+    (add-hook
+     'tsx-mode-gql-exit-region-hook
+     'tsx-mode--gql-exit-region
+     nil t)
+    (add-hook
+     'tsx-mode-gql-enter-region-hook
+     'tsx-mode--gql-enter-region
+     nil t)
+    (add-hook
+     'post-command-hook
+     'tsx-mode--update-current-gql-region
+     nil t)
+    (add-to-list
+     'tsx-mode--indent-fns
+     'tsx-mode--indent-gql-at-point)
+    (add-hook
+     'after-change-functions
+     (lambda (beg end old-text-length)
+       (tsx-mode--gql-update-regions)
+       (tsx-mode--update-current-gql-region))
+     nil t)
+    (tsx-mode--gql-update-regions))
+   (t nil)))
 
 
 (define-derived-mode
