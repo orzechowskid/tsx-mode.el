@@ -1,4 +1,4 @@
-# tsx-mode.el: a batteries-included major mode for TSX/JSX files
+# tsx-mode.el: a batteries-included Emacs major mode for TSX/JSX files
 
 ![](https://repository-images.githubusercontent.com/461083728/2a857234-2563-48bb-9b1f-6a69266cb543)
 
