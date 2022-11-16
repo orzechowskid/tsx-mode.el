@@ -28,7 +28,11 @@ Emacs 27 (or, better, 28.1+) with the following packages installed:
 
 download this package and place the .el files from it in a directory on your load-path. use the `master` branch if you want the latest stable code; use the (possibly unstable) `next` branch if you want the latest features.
 
-> or install this repository (and all its package dependencies) via `straight.el`: `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
+> or install this repository (and all its package dependencies) via `straight.el`:
+>
+> `(straight-use-package '(tsi :type git :host github :repo "orzechowskid/tsi.el"))`
+>
+> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 
 ### Require
 
