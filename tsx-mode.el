@@ -501,6 +501,8 @@ been enabled."
 
 (when load-file-name
   (let ((tsx-mode-dir (file-name-directory load-file-name)))
+    (message "tsx-mode loading files from %s" tsx-mode-dir)
+    (message "tree-sitter load path is %s" tree-sitter-load-path)
     (load-file (concat tsx-mode-dir "graphql.el"))
     (load-file (concat tsx-mode-dir "css-in-js.el"))))
 
