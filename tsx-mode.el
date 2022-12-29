@@ -303,6 +303,14 @@ enabled."
 (defun tsx-mode--eglot-configure ()
   "Internal function.  Configures some eglot-related variables after that minor
 mode has been enabled."
+  ;; eglot adds its own capf to the head of `completion-at-point-functions'
+  ;; which always returns something, meaning other capfs never get invoked.
+  ;; that is not what we want for css-in-js-mode
+  (setq-local
+   completion-at-point-functions
+   '(css-in-js-mode--capf eglot-completion-at-point t))
+  ;; eglot sets its own value for `eldoc-documentation-strategy' which causes
+  ;; diagnostic messages to be hidden in favor of docstrings.  show both instead
   (when tsx-mode-use-own-documentation-strategy
     (tsx-mode--debug "configuring eldoc-documentation-strategy")
     (setq-local
