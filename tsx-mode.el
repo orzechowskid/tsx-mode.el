@@ -113,148 +113,10 @@ Calls `message' with ARGS only when `tsx-mode-debug` is `t` in this buffer."
   (when tsx-mode-debug
     (apply 'message args)))
 
-;; (defun tsx-mode--do-fontification (beg end)
-;;   "Internal function.
-;; Perform just-in-time text propertization from BEG to END in the current buffer."
-;;   (tsx-mode--debug "fontifying %d-%d" beg end)
-;;   (tree-sitter-hl--highlight-region beg end nil)
-;;   (cond
-;;     (tsx-mode--current-css-region
-;;      (tsx-mode--fontify-current-css-region))
-;;     (tsx-mode--current-gql-region
-;;      (tsx-mode--fontify-current-gql-region))
-;;     (tsx-mode-css-force-highlighting
-;;      (dolist (region tsx-mode--css-regions)
-;;        (let ((tsx-mode--current-css-region region))
-;;          (tsx-mode--fontify-current-css-region))))
-;;     (t nil))
-;;   `(jit-lock-bounds
-;;     ,(min beg (or (plist-get tsx-mode--current-css-region :region-begin) (point-max)))
-;;     . ,(max end (or (plist-get tsx-mode--current-css-region :region-end) (point-min)))))
-
-;; (defun maybe-object-intervals (obj)
-;;   "Internal function.
-;; Returns whatever (`object-intervals' OBJ) returns if that function exists, and
-;; nil otherwise."
-;;   (if (fboundp 'object-intervals)
-;;       (object-intervals obj)))
-
-;; (defun tsx-mode--post-command-hook ()
-;;   "Internal function.
-;; A hook function registered at `post-command-hook'."
-;;   (tsx-mode--configure-region-specific-vars))
-
-;; (defun tsx-mode--indent ()
-;;   "Internal function.
-;; Calculate indentation for the current line."
-;;   (tsi--indent-line-to
-;;    (+
-;;     ;; indentation for typescript tree-sitter node
-;;     (let ((ts-indent (tsi-calculate-indentation
-;; 		      'tsi-typescript--get-indent-for
-;; 		      'tsi-typescript--get-indent-for-current-line)))
-;;       (tsx-mode--debug "TS indentation: %d" ts-indent)
-;;       ts-indent)
-;;     ;; indentation for GQL
-;;     (let ((gql-indent
-;;            (if (and tsx-mode--current-gql-region
-;;                     (save-excursion
-;;                       (end-of-line)
-;;                       (tsx-mode--gql-region-for-point)))
-;;                (tsx-mode--indent-gql-at-pos (point))
-;;              0)))
-;;       (tsx-mode--debug "GQL indentation: %d" gql-indent)
-;;       gql-indent)
-;;     ;; indentation for css tree-sitter node
-;;     (let ((css-indent
-;; 	   (if (and tsx-mode--current-css-region
-;; 		    (save-excursion
-;; 		      (end-of-line)
-;; 		      (tsx-mode--css-region-for-point)))
-;; 	       ;; hack: catch incorrect indentation caused by ERROR nodes in the CST
-;; 	       ;; belonging to the hidden CSS buffer and try to do the right thing
-;; 	       (max
-;; 		tsi-css-indent-offset
-;; 		(tsx-mode--indent-css-at-pos
-;; 		 (+ 1
-;; 		    (length "div{")
-;; 		    (- (point) (plist-get tsx-mode--current-css-region :region-begin)))))
-;; 	     0)))
-;;       (tsx-mode--debug "CSS indentation: %d" css-indent)
-;;       css-indent))))
-
-;; (defun tsx-mode--configure-region-specific-vars ()
-;;   "Internal function.
-;; (Re-)configure important variables as point moves around the buffer."
-;;   (tsx-mode--debug "current CSS region: %s, current GQL region: %s, in jsx:"
-;;                    tsx-mode--current-css-region
-;;                    tsx-mode--current-gql-region
-;;                    (tsx-mode--is-in-jsx-p))
-;;   (cond
-;;     (tsx-mode--current-css-region
-;;      (setq comment-start "/* ")
-;;      (setq comment-end " */")
-;;      (setq comment-start-skip "/\\*")
-;;      (setq comment-end-skip "[[:space:]]*\\*/\\n?"))
-;;     ((tsx-mode--is-in-jsx-p)
-;;      (setq comment-start "{/* ")
-;;      (setq comment-end " */}")
-;;      (setq comment-start-skip "{/\\*+[[:space:]]*")
-;;      (setq comment-end-skip "\\*/}\\n?"))
-;;     (t
-;;      ;; TODO: allow configuration of style of non-TSX non-CSS comments?
-;;      (setq comment-start "// ")
-;;      (setq comment-end "")
-;;      (setq comment-start-skip "//[[:space:]]*")
-;;      (setq comment-end-skip nil)))
-;;   (comment-normalize-vars))
-
-;; (defun tsx-mode--comment-region-function (beg end &optional arg)
-;;   "Internal function.
-;; Wrap `comment-region-default' and do some stuff afterwards without relying on
-;; advice."
-;;   (funcall 'comment-region-default beg end arg)
-;;   (funcall indent-line-function))
-
-;; (defun tsx-mode--uncomment-region-function (beg end &optional arg)
-;;   "Internal function.
-;; Wrap `uncomment-region-default' and do some stuff afterwards without relying on
-;; advice."
-;;   (funcall 'uncomment-region-default beg end arg)
-;;   (funcall indent-line-function))
-
-;; (defun tsx-mode--looking-at-node-p (node-type &optional pos)
-;;   "Internal function.
-;; Returns t if POS is inside a tree-sitter node of type NODE-TYPE.  POS defaults
-;; to point."
-;;   (let* ((current-node
-;; 	  (tree-sitter-node-at-pos nil (or pos (point))))
-;; 	 (current-node-type
-;; 	  (when current-node
-;; 	    (tsc-node-type current-node))))
-;;     (while (and current-node
-;; 		(not (equal
-;; 		      node-type
-;; 		      (tsc-node-type current-node))))
-;;       (setq current-node
-;; 	    (tsc-get-parent current-node)))
-;;     (if current-node
-;; 	t
-;;       nil)))
-
-;; (defun tsx-mode--completion-at-point ()
-;;   "Internal function.
-;; Delegate to either css-mode's capf or lsp-mode's capf depending on where point
-;; is."
-;;   (if (or (not tsx-mode--current-css-region)
-;; 	  (tsx-mode--looking-at-node-p 'template_substitution))
-;;       (lsp-completion-at-point)
-;;     (tsx-mode--css-completion-at-point)))
-
 (defun tsx-mode--make-captures-tree (captures create start end)
   "Internal function.
 Make a tree from CAPTURES using CREATE that are between START and END.  The
-CAPTURES, as returned by `tressit-query-capture', may overlap, thus this generates
+CAPTURES, as returned by `treesit-query-capture', may nest, thus this generates
 a tree (or multiple) as required by Origami.
 
 Returns a pair (regions . captures) with the remaining captures."
@@ -295,12 +157,12 @@ fold nodes, where each fold node is created by invoking CREATE."
              tsx-mode--code-fold-query))
            (captures
             ;; query-result is a list of (name . node) cons cells; we only care
-            ;; about the nodes with a capture name of "fold"
-            (seq-reduce
-             (lambda (acc el)
-               (when (string= (car el) "fold")
-                 (push (cdr el) acc))
-               acc)
+            ;; about the nodes with a capture name of "fold" (since other
+            ;; captures with other names may be required to properly select the
+            ;; area to fold)
+            (seq-filter
+             (lambda (el)
+               (string= (car el) "fold"))
              query-result)))
       (car
        (tsx-mode--make-captures-tree
@@ -423,110 +285,19 @@ defaults to (`point') if not provided."
 	  (coverlay-watch-file coverage-file))
         (coverlay-minor-mode 'toggle)))))
 
-(defun tsx-mode-fold-toggle-node ()
+(defun tsx-mode-fold-toggle-node (buffer point)
   "Delegates to `origami-toggle-node' when `tsx-mode-use-code-folding' is
 enabled."
+  (interactive (list (current-buffer) (point)))
   (when tsx-mode-use-code-folding
-    (origami-toggle-node)))
+    (origami-toggle-node buffer point)))
 
-(defun tsx-mode-fold-toggle-all-nodes ()
+(defun tsx-mode-fold-toggle-all-nodes (buffer)
   "Delegates to `origami-toggle-all-nodes' when `tsx-mode-use-code-folding' is
 enabled."
+  (interactive (list (current-buffer)))
   (when tsx-mode-use-code-folding
-    (origami-toggle-all-nodes)))
-
-;; (defun tsx-mode--setup-buffer ()
-;;   "Internal function.
-;; Hook to be called to finish configuring the current buffer after lsp-mode has
-;; been enabled."
-;;   ;; set up tree-sitter and related
-;;   (tree-sitter-require 'tsx)
-;;   (add-to-list
-;;    'tree-sitter-major-mode-language-alist
-;;    '(tsx-mode . tsx))
-;;   (setq tree-sitter-hl-default-patterns
-;;         (tree-sitter-langs--hl-default-patterns 'tsx))
-;;   (tsi-typescript-mode)
-;;   (tree-sitter-hl-mode)
-;;   ;; set up code-folding
-;;   (origami-mode t)
-;;   (add-to-list
-;;    'origami-parser-alist
-;;    '(tsx-mode . tsx-mode--origami-parser))
-;;   (set (make-local-variable 'comment-use-syntax) nil)
-;;   (set (make-local-variable 'comment-region-function)
-;;        'tsx-mode--comment-region-function)
-;;   (set (make-local-variable 'uncomment-region-function)
-;;        'tsx-mode--uncomment-region-function)
-;;   (make-local-variable 'comment-start)
-;;   (make-local-variable 'comment-end)
-;;   (make-local-variable 'comment-start-skip)
-;;   (make-local-variable 'comment-end-skip)
-;;   (make-local-variable 'indent-line-function)
-;;   (setq-local indent-line-function 'tsx-mode--indent)
-;;   (jit-lock-register
-;;    'tsx-mode--do-fontification)
-;;   (add-hook
-;;    'post-command-hook
-;;    'tsx-mode--post-command-hook
-;;    nil t)
-;;   (add-hook
-;;    'jit-lock-functions
-;;    'tsx-mode--do-fontification
-;;    nil t)
-;;   (setq
-;;    completion-at-point-functions
-;;    '(tsx-mode--completion-at-point lsp-completion-at-point))
-;;   (tsx-mode-css)
-;;   (tsx-mode-gql))
-
-
-;; ;;;###autoload
-;; (define-derived-mode
-;;     tsx-mode prog-mode "TSX"
-;;     "A batteries-included major mode for JSX and friends."
-;;     :group 'tsx-mode
-;;     :syntax-table (let ((table (make-syntax-table)))
-;;                     (c-populate-syntax-table table)
-;;                     ;; backticks are string delimiters
-;;                     (modify-syntax-entry ?` "\"" table)
-;;                     ;; dollar signs are allowed in symbol names
-;;                     (modify-syntax-entry ?$ "_" table)
-;;                     table)
-
-;;     (define-key
-;;      tsx-mode-map
-;;      (kbd "C-c t f")
-;;      'origami-toggle-node)
-;;     (define-key
-;;      tsx-mode-map
-;;      (kbd "C-c t F")
-;;      'origami-toggle-all-nodes)
-;;     (define-key
-;;      tsx-mode-map
-;;      (kbd "C-c t c")
-;;      'tsx-mode-coverage-toggle)
-;;     (define-key
-;;      tsx-mode-map
-;;      (kbd "<")
-;;      'tsx-mode-tsx-maybe-insert-self-closing-tag)
-;;     (define-key
-;;      tsx-mode-map
-;;      (kbd ">")
-;;      'tsx-mode-tsx-maybe-close-tag)
-;;     ;; configure things after lsp-mode is finished doing whatever it does
-;;     (add-hook
-;;      'lsp-completion-mode-hook
-;;      'tsx-mode--setup-buffer
-;;      100 t)
-;;     (lsp-ensure-server 'ts-ls)
-;;     (lsp)
-;;     (lsp-completion-mode t))
-
-;; (when load-file-name
-;;   (let ((tsx-mode-dir (file-name-directory load-file-name)))
-;;     (load-file (concat tsx-mode-dir "graphql.el"))
-;;     (load-file (concat tsx-mode-dir "css-in-js.el"))))
+    (origami-toggle-all-nodes buffer)))
 
 
 (defun tsx-mode--eglot-configure ()
@@ -549,23 +320,23 @@ mode has been enabled."
     (define-key
      tsx-mode-map
      (kbd "C-c t f")
-     'tsx-mode-fold-toggle-node)
+     #'tsx-mode-fold-toggle-node)
     (define-key
      tsx-mode-map
      (kbd "C-c t F")
-     'tsx-mode-fold-toggle-all-nodes)
+     #'tsx-mode-fold-toggle-all-nodes)
     (define-key
      tsx-mode-map
      (kbd "C-c t c")
-     'tsx-mode-coverage-toggle)
+     #'tsx-mode-coverage-toggle)
     (define-key
      tsx-mode-map
      (kbd "<")
-     'tsx-mode-tsx-maybe-insert-self-closing-tag)
+     #'tsx-mode-tsx-maybe-insert-self-closing-tag)
     (define-key
      tsx-mode-map
      (kbd ">")
-     'tsx-mode-tsx-maybe-close-tag))
+     #'tsx-mode-tsx-maybe-close-tag))
   (when tsx-mode-use-code-folding
     (tsx-mode--debug "configuring code-folding")
     (add-to-list
