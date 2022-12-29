@@ -13,6 +13,8 @@
 
 ## Installation
 
+this branch of code is intended for emacs version 27 or 28.  support for emacs versions 29 and newer can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs29](https://github.com/orzechowskid/tsx-mode.el/tree/emacs29).
+
 ### Dependencies
 
 Emacs 27 (or, better, 28.1+) with the following packages installed:
