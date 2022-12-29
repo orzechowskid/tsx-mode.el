@@ -51,7 +51,7 @@ all tsx-mode keybindings live under the `C-c t` prefix.
 
 ## Configuration
 
-Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.  Indentation can be found in the `tsi-typescript` and `tsi-css` customization groups, and code-coverage overlays in the `coverlay` customization group.
+Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
 
 ## License
 
