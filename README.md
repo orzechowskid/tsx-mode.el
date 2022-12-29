@@ -4,6 +4,6 @@
 
 ## Installation
 
-emacs 29+: https://github.com/orzechowskid/tsx-mode.el/tree/emacs29
-emacs 27 and 28: https://github.com/orzechowskid/tsx-mode.el/tree/emacs28
-emacs < 27: not supported, sorry :(
+- emacs 29+: https://github.com/orzechowskid/tsx-mode.el/tree/emacs29
+- emacs 27 and 28: https://github.com/orzechowskid/tsx-mode.el/tree/emacs28
+- emacs < 27: not supported, sorry :(
