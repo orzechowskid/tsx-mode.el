@@ -18,7 +18,6 @@ this branch of code is intended for emacs version 29 or newer.  support for emac
 ### Dependencies
 
  - Emacs 29 or newer, compiled with treesit support
- - [`corfu`](https://github.com/minad/corfu)
  - [`coverlay`](https://github.com/twada/coverlay.el) (available on MELPA)
  - [`css-in-js-mode`](https://github.com/orzechowskid/tree-sitter-css-in-js)
  - [`origami.el`](https://github.com/gregsexton/origami.el) (available on MELPA)
