@@ -372,8 +372,17 @@ mode has been enabled."
      'eglot-managed-mode-hook
      #'tsx-mode--eglot-configure
      nil t)
-    (eglot-ensure)))
-  
+    (eglot-ensure))
+  ;; some extra tsx indent rules until emacs gets patched
+  (setf
+   (cdr (assoc 'tsx treesit-simple-indent-rules))
+   (append
+    (cdr (assoc 'tsx treesit-simple-indent-rules))
+    '(
+      ((parent-is "jsx_opening_element") parent typescript-ts-mode-indent-offset)
+      ((parent-is "jsx_self_closing_element") parent typescript-ts-mode-indent-offset)
+      ))))
+    
 
 ;;;###autoload
 (add-to-list
