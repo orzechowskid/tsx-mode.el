@@ -381,6 +381,8 @@ mode has been enabled."
     '(
       ((parent-is "jsx_opening_element") parent typescript-ts-mode-indent-offset)
       ((parent-is "jsx_self_closing_element") parent typescript-ts-mode-indent-offset)
+      ((parent-is "switch_body") parent-bol typescript-ts-mode-indent-offset)
+      ((parent-is "export_clause") parent-bol typescript-ts-mode-indent-offset)
       ))))
     
 
