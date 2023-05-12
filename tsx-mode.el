@@ -53,6 +53,20 @@ closing tags."
   "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
 to *Messages*.")
 
+(defun tsx-mode--region-active-p ()
+  "Return non-nil if selection is active. Detects evil visual mode as well."
+  (declare (side-effect-free t))
+  (or (use-region-p)
+      (and (bound-and-true-p evil-local-mode)
+           (evil-visual-state-p))))
+
+(defun tsx-mode--region-beginning ()
+  "Return beginning position of selection. Uses `evil-visual-beginning' if available."
+  (declare (side-effect-free t))
+  (or (and (bound-and-true-p evil-local-mode)
+           (markerp evil-visual-beginning)
+           (marker-position evil-visual-beginning))
+      (region-beginning)))
 
 (defun tsx-mode--debug (&rest args)
   "Internal function.
@@ -139,7 +153,7 @@ Calculate indentation for the current line."
                    (tsx-mode--is-in-jsx-p))
   (cond
     ((or tsx-mode--current-css-region
-         (and (region-active-p)
+         (and (tsx-mode--region-active-p)
               (eq 1 (count-lines (region-beginning) (region-end)))))
      (setq comment-start "/* ")
      (setq comment-end " */")
@@ -335,7 +349,7 @@ closing tag."
   "Internal function.
 Return t if MAYBE-POS is inside a JSX-related tree-sitter node.  MAYBE-POS
 defaults to (`point') if not provided."
-  (let ((pos (or (when (region-active-p) (region-beginning)) (point-at-bol))))
+  (let ((pos (or (when (tsx-mode--region-active-p) (tsx-mode--region-beginning)) (point-at-bol))))
     (and-let* ((current-node (tree-sitter-node-at-pos :named pos))
                (current-node-type (tsc-node-type current-node))
                (is-jsx (or (eq current-node-type 'jsx_expression)
