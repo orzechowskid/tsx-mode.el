@@ -138,7 +138,9 @@ Calculate indentation for the current line."
                    tsx-mode--current-gql-region
                    (tsx-mode--is-in-jsx-p))
   (cond
-    (tsx-mode--current-css-region
+    ((or tsx-mode--current-css-region
+         (and (region-active-p)
+              (eq 1 (count-lines (region-beginning) (region-end)))))
      (setq comment-start "/* ")
      (setq comment-end " */")
      (setq comment-start-skip "/\\*")
@@ -277,6 +279,7 @@ Return t if a self-closing tag is allowed to be inserted at point."
            (string= last-anon-node-type "=")
            (eq last-named-node-type 'jsx_opening_element)
            (eq last-named-node-type 'jsx_closing_element)
+           (eq last-named-node-type 'jsx_self_closing_element)
            (eq last-named-node-type 'jsx_fragment)
            (eq last-named-node-type 'jsx_expression)))))
 
@@ -332,11 +335,10 @@ closing tag."
   "Internal function.
 Return t if MAYBE-POS is inside a JSX-related tree-sitter node.  MAYBE-POS
 defaults to (`point') if not provided."
-  (let ((pos (or maybe-pos (point))))
+  (let ((pos (or (when (region-active-p) (region-beginning)) (point-at-bol))))
     (and-let* ((current-node (tree-sitter-node-at-pos :named pos))
                (current-node-type (tsc-node-type current-node))
                (is-jsx (or (eq current-node-type 'jsx_expression)
-                           (eq current-node-type 'jsx_self_closing_element)
                            (eq current-node-type 'jsx_text)))))))
 
 (defun tsx-mode-coverage-toggle ()
