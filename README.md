@@ -28,7 +28,7 @@ download this package and place the .el files from it in a directory on your loa
 
 > or install this repository (and all its package dependencies) via `straight.el`:
 >
-> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs29"))`
+> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
 
 ### Require
 
