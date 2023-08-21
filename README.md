@@ -38,6 +38,10 @@ download this package and place the .el files from it in a directory on your loa
 
 `(tsx-mode t)`
 
+#### Enable by default for JS/TS files
+
+`(add-to-list 'auto-mode-alist '("\\.[jt]s[x]?\\'" . tsx-mode)`
+
 ## Keybindings
 
 all tsx-mode keybindings live under the `C-c t` prefix.
