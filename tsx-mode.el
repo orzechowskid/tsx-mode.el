@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for JSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 2.1.0
+;;; Version: 2.2.0
 
 ;;; Author: Dan Orzechowski
 
@@ -46,6 +46,11 @@ closing tags."
   "List of tree-sitter queries for which to create Origami code-folding nodes."
   :type '(repeat string)
   :group 'tsx-mode)
+
+
+(defvar tsx-mode-abbrev-table nil
+  "Abbrev table in use in `tsx-mode' buffers.")
+(define-abbrev-table 'tsx-mode-abbrev-table ())
 
 
 (defvar-local tsx-mode-debug
