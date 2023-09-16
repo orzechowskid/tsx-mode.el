@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 3.0.0
+;;; Version: 3.1.0
 
 ;;; Author: Dan Orzechowski
 
@@ -104,12 +104,6 @@ turn that tag into separate opening and closing tags."
 (defvar tsx-mode-abbrev-table nil
   "Abbrev table in use in `tsx-mode' buffers.")
 (define-abbrev-table 'tsx-mode-abbrev-table ())
-
-
-(defvar-local tsx-mode-debug
-    nil
-  "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
-to *Messages*.")
 
 
 (defvar-local tsx-mode-debug
