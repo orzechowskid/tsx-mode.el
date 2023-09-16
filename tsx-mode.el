@@ -101,6 +101,17 @@ turn that tag into separate opening and closing tags."
   "3.0.0")
 
 
+(defvar tsx-mode-abbrev-table nil
+  "Abbrev table in use in `tsx-mode' buffers.")
+(define-abbrev-table 'tsx-mode-abbrev-table ())
+
+
+(defvar-local tsx-mode-debug
+    nil
+  "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
+to *Messages*.")
+
+
 (defvar-local tsx-mode-debug
     nil
   "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
@@ -383,8 +394,8 @@ mode has been enabled."
       ((parent-is "jsx_self_closing_element") parent typescript-ts-mode-indent-offset)
       ((parent-is "switch_body") parent-bol typescript-ts-mode-indent-offset)
       ((parent-is "export_clause") parent-bol typescript-ts-mode-indent-offset)
-      ))))
-    
+      )))
+  (treesit-major-mode-setup))
 
 ;;;###autoload
 (add-to-list
