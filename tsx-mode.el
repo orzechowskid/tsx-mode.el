@@ -59,6 +59,21 @@ closing tags."
 to *Messages*.")
 
 
+(defun tsx-mode--region-active-p ()
+  "Return non-nil if selection is active. Detects evil visual mode as well."
+  (declare (side-effect-free t))
+  (or (use-region-p)
+      (and (bound-and-true-p evil-local-mode)
+           (evil-visual-state-p))))
+
+(defun tsx-mode--region-beginning ()
+  "Return beginning position of selection. Uses `evil-visual-beginning' if available."
+  (declare (side-effect-free t))
+  (or (and (bound-and-true-p evil-local-mode)
+           (markerp evil-visual-beginning)
+           (marker-position evil-visual-beginning))
+      (region-beginning)))
+
 (defun tsx-mode--debug (&rest args)
   "Internal function.
 Print messages only when `tsx-mode-debug` is `t` in this buffer."
@@ -143,7 +158,10 @@ Calculate indentation for the current line."
                    tsx-mode--current-gql-region
                    (tsx-mode--is-in-jsx-p))
   (cond
-    (tsx-mode--current-css-region
+    ((or tsx-mode--current-css-region
+         (and (tsx-mode--region-active-p)
+              (eq 1 (count-lines (region-beginning) (region-end)))))
+     (tsx-mode--current-css-region
      (setq comment-start "/* ")
      (setq comment-end " */")
      (setq comment-start-skip "/\\*")
@@ -282,6 +300,7 @@ Return t if a self-closing tag is allowed to be inserted at point."
            (string= last-anon-node-type "=")
            (eq last-named-node-type 'jsx_opening_element)
            (eq last-named-node-type 'jsx_closing_element)
+           (eq last-named-node-type 'jsx_self_closing_element)
            (eq last-named-node-type 'jsx_fragment)
            (eq last-named-node-type 'jsx_expression)))))
 
@@ -337,7 +356,7 @@ closing tag."
   "Internal function.
 Return t if MAYBE-POS is inside a JSX-related tree-sitter node.  MAYBE-POS
 defaults to (`point') if not provided."
-  (let ((pos (or maybe-pos (point))))
+  (let ((pos (or (when (tsx-mode--region-active-p) (tsx-mode--region-beginning)) (point-at-bol))))
     (and-let* ((current-node (tree-sitter-node-at-pos :named pos))
                (current-node-type (tsc-node-type current-node))
                (is-jsx (or (eq current-node-type 'jsx_expression)
