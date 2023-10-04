@@ -392,10 +392,10 @@ mode has been enabled."
   (treesit-major-mode-setup))
 
 ;;;###autoload
-(add-to-list
- 'eglot-server-programs
- '(tsx-mode "typescript-language-server" "--stdio"))
-
+(with-eval-after-load 'eglot
+ (add-to-list
+  'eglot-server-programs
+  '(tsx-mode "typescript-language-server" "--stdio")))
 
 (provide 'tsx-mode)
 ;;; tsx-mode.el ends here
