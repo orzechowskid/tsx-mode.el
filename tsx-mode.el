@@ -6,7 +6,7 @@
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "29.0") ((corfu "0.33") (coverlay "3.0.2") (css-in-js-mode "1.0.0") (origami "1.0"))
+;;; Package-Requires: ((emacs "29.0") (corfu "0.33") (coverlay "3.0.2") (css-in-js-mode "1.0.0") (origami "1.0"))
 
 ;;; Commentary:
 
