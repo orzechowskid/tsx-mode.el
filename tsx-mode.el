@@ -177,7 +177,7 @@ Calculate indentation for the current line."
      (setq comment-end "")
      (setq comment-start-skip "//[[:space:]]*")
      (setq comment-end-skip nil)))
-  (comment-normalize-vars))
+  (comment-normalize-vars)))
 
 (defun tsx-mode--comment-region-function (beg end &optional arg)
   "Internal function.
