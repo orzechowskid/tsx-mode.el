@@ -1,401 +1,319 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 3.1.0
+;;; Version: 4.0.0
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "29.0") (corfu "0.33") (coverlay "3.0.2") (css-in-js-mode "1.0.0") (origami "1.0"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0"))
 
 ;;; Commentary:
 
 ;;; Code:
 
-
+(require 'css-mode)
 (require 'eglot)
-(require 'seq)
 (require 'treesit)
-(require 'typescript-ts-mode)
-
-(require 'coverlay)
-(require 'css-in-js-mode)
-;; origami depends on some now-deprecated cl functions and there's not much we
-;; can do about that
-(let ((byte-compile-warnings '((not cl-functions))))
-  (require 'origami))
 
 
-(defgroup tsx-mode nil
-  "Major mode for JSX webapp files."
-  :group 'programming
-  :prefix "tsx-mode-")
+(defcustom tsx-mode-enable-css-in-js-font-lock
+	t
+	"Conditionally or unconditionally enable or disable syntax highlighting for
+   CSS-in-JS ranges."
+	:type '(choice (const :tag "Never" nil)
+								 (const :tag "When point is in a range" when-in-range)
+								 (const :tag "Always" t)))
+
+(defcustom tsx-mode-enable-folding
+	t
+	"Enable or disable code folding for blocks, functions, etc.")
+
+(defcustom tsx-mode-enable-lsp
+	t
+	"Enable or disable LSP support with eglot (and typescript-language-server).")
 
 
-(defcustom tsx-mode-code-fold-queries
-  '("((statement_block) @fold)"
-    "(call_expression (template_string) @fold)")
-  "List of tree-sitter queries for which to create Origami code-folding nodes.
-Any node with a capture name of 'fold' will be used as a fold node."
-  :type '(repeat string)
-  :group 'tsx-mode)
+(defvar-local tsx-mode/current-range
+	nil
+	"Internal variable.  a cons cell containing the start and end buffer positions
+   of the current embedded range, or `nil' if none.")
 
-(defcustom tsx-mode-use-code-coverage
-  t
-  "Whether or not to configure code-coverage overlays."
-  :type 'boolean
-  :group 'tsx-mode)
+(defvar tsx-mode/css-queries
+	(list
+	 ;; styled-components, emotion, etc. format
+	 ;; styled.foo``
+	 (treesit-query-compile 'tsx
+													'((member_expression ((identifier) @_id) (:match "styled" @_id)) (template_string) @ts)
+													t)
+	 ;; styled(Foo)``
+	 (treesit-query-compile 'tsx
+													'((call_expression ((identifier) @_id) (:match "styled" @_id)) (template_string) @ts)
+													t)
+	 ;; css``
+	 (treesit-query-compile 'tsx
+													'((call_expression (identifier) @_id (:match "css" @_id) (template_string) @ts))
+													t)
 
-(defcustom tsx-mode-use-code-folding
-  t
-  "Whether or not to configure code-folding."
-  :type 'boolean
-  :group 'tsx-mode)
+ 	 ;; styled-jsx format
+ 	 ;; <style jsx>{``}</style>
+	 (treesit-query-compile 'tsx
+ 													'((jsx_element (jsx_opening_element (identifier) @_name (:match "style" @_name) (jsx_attribute (property_identifier) @_attr (:match "jsx" @_attr))) (jsx_expression (template_string) @ts)))
+													t)
 
-(defcustom tsx-mode-use-completion
-  t
-  "Whether or not to configure a code-completion frontend."
-  :type 'boolean
-  :group 'tsx-mode)
+	 ;; Quik format
+	 ;; useStyles$(``) or useStylesScoped$(``)
+ 	 (treesit-query-compile 'tsx
+													'((call_expression (identifier) @_id (:match "^useStyles\\(Scoped\\)?\\$" @_id) (arguments (template_string) @ts)))
+													t))
+	"Internal variable.  Treesit queries for the TSX language, specifying known
+   CSS-in-JS ranges.")
 
-(defcustom tsx-mode-use-css-in-js
-  t
-  "Whether or not to configure support for CSS-in-JS."
-  :type 'boolean
-  :group 'tsx-mode)
+(defvar tsx-mode/css-indent-rules
+	(append '(css-in-js)
+					'(
+						;; this rule doesn't exist (and doesn't need to) in css-mode
+						((parent-is "stylesheet") parent-bol css-indent-offset)
+						;; change alignment of multi-line property values
+						((parent-is "declaration") parent-bol css-indent-offset))
+					(cdar css--treesit-indent-rules))
+	"Internal variables.  Tree-sitter indentation settings for CSS-in-JS.  Derived
+   from `css--treesit-indent-rules', with a couple of additions.")
 
-(defcustom tsx-mode-use-jsx-auto-tags
-  nil
-  "Whether or not to use automatic JSX tags.  When set to t, typing an open
-angle-bracket ('<') will also insert '/>` to create a self-closing element tag.
-Typing a close angle-bracket ('>') will, if point is inside a self-closing tag,
-turn that tag into separate opening and closing tags."
-  :type 'boolean
-  :group 'tsx-mode)
+(defvar tsx-mode/css-font-lock-rules
+  (list
+	 :default-language 'css-in-js
 
-(defcustom tsx-mode-use-key-commands
-  t
-  "Whether or not to configure custom keyboard shortcuts."
-  :type 'boolean
-  :group 'tsx-mode)
+   :feature 'comment
+   '((comment) @font-lock-comment-face)
 
-(defcustom tsx-mode-use-lsp
-  t
-  "Whether or not to configure a Language Server Protocol server and client."
-  :type 'boolean
-  :group 'tsx-mode)
+   :feature 'string
+   '((string_value) @font-lock-string-face)
 
-(defcustom tsx-mode-use-own-documentation-strategy
-  t
-  "Whether or not to configure how help text is displayed."
-  :type 'boolean
-  :group 'tsx-mode)
+   :feature 'keyword
+   '(["@media"
+      "@import"
+      "@charset"
+      "@namespace"
+      "@keyframes"] @font-lock-builtin-face
+      ["and"
+       "or"
+       "not"
+       "only"
+       "selector"] @font-lock-keyword-face)
 
+   :feature 'variable
+   '((plain_value) @tsx-mode--css-font-lock-value
+		 (color_value) @tsx-mode--css-font-lock-value)
 
-(define-obsolete-variable-alias
-  'tsx-mode-tsx-auto-tags 'tsx-mode-use-jsx-auto-tags
-  "3.0.0")
+   :feature 'operator
+   `(["=" "~=" "^=" "|=" "*=" "$="] @font-lock-operator-face)
 
-(define-obsolete-variable-alias
-  'tsx-mode-fold-tree-queries 'tsx-mode-code-fold-queries
-  "3.0.0")
+   :feature 'selector
+   '((class_selector) @css-selector
+     (child_selector) @css-selector
+     (id_selector) @css-selector
+     (tag_name) @css-selector
+     (class_name) @css-selector)
 
+   :feature 'property
+   `((property_name) @font-lock-property-name-face)
 
-(defvar tsx-mode-abbrev-table nil
-  "Abbrev table in use in `tsx-mode' buffers.")
-(define-abbrev-table 'tsx-mode-abbrev-table ())
+   :feature 'function
+   '((function_name) @font-lock-function-name-face)
 
+   :feature 'constant
+   '((integer_value) @font-lock-number-face
+     (float_value) @font-lock-number-face
+     (unit) @font-lock-constant-face
+     (important) @font-lock-builtin-face)
 
-(defvar-local tsx-mode-debug
-    nil
-  "Debug boolean for tsx-mode.  Causes a bunch of helpful(?) text to be spammed
-to *Messages*.")
+   :feature 'query
+   '((keyword_query) @font-lock-property-use-face
+     (feature_name) @font-lock-property-use-face)
 
-
-(defun tsx-mode--debug (&rest args)
-  "Internal function.
-Calls `message' with ARGS only when `tsx-mode-debug` is `t` in this buffer."
-  (when tsx-mode-debug
-    (apply 'message args)))
-
-(defun tsx-mode--make-captures-tree (captures create start end)
-  "Internal function.
-Make a tree from CAPTURES using CREATE that are between START and END.  The
-CAPTURES, as returned by `treesit-query-capture', may nest, thus this generates
-a tree (or multiple) as required by Origami.
-
-Returns a pair (regions . captures) with the remaining captures."
-  (let (regions break)
-    (while (and (not break) captures)
-      (let* ((elt (cdar captures))
-             (e-start (treesit-node-start elt))
-             (e-end (treesit-node-end elt)))
-        (if (>= e-start end)
-            ;; the current capture is outside of our range, we're done
-            ;; here
-            (setq break t)
-          (let* ((e-tree (tsx-mode--make-captures-tree
-                          (cdr captures)
-                          create
-                          e-start
-                          e-end))
-                 (e-children (car e-tree)))
-            (setq captures (cdr e-tree))
-            (setq regions
-                  (cons
-                   (funcall create
-                            e-start
-                            e-end
-                            0
-                            e-children)
-                   regions))))))
-    (cons (reverse regions) captures)))
-
-(defun tsx-mode--origami-parser (create)
-  "Internal function.
-Returns a parser for origami.el code folding.  The parser must return a list of
-fold nodes, where each fold node is created by invoking CREATE."
-  (lambda (content)
-    (let* ((query-result
-            (treesit-query-capture
-             (treesit-buffer-root-node 'tsx)
-             tsx-mode--code-fold-query))
-           (captures
-            ;; query-result is a list of (name . node) cons cells; we only care
-            ;; about the nodes with a capture name of "fold" (since other
-            ;; captures with other names may be required to properly select the
-            ;; area to fold)
-            (seq-filter
-             (lambda (el)
-               (string= (car el) "fold"))
-             query-result)))
-      (car
-       (tsx-mode--make-captures-tree
-        captures
-        create
-        (point-min)
-        (point-max))))))
-
-(defun tsx-mode--tsx-self-closing-tag-at-point-p ()
-  "Internal function.
-Return t if a self-closing tag is allowed to be inserted at point."
-  (save-excursion
-    (tsx-mode--debug
-     "checking current named node %s for self-closing tag support..."
-     (when (treesit-node-at (point) 'tsx t) (treesit-node-type (treesit-node-at (point) 'tsx t))))
-    (re-search-backward "[^\r\n[:space:]]" nil t)
-    (let* ((last-named-node
-            (treesit-node-at (point) 'tsx t))
-           (last-named-node-type
-            (when last-named-node (treesit-node-type last-named-node)))
-           (last-anon-node
-            (treesit-node-at (point) 'tsx nil))
-           (last-anon-node-type
-            (when last-anon-node (treesit-node-text last-anon-node))))
-      (tsx-mode--debug
-       "checking named node %s and anon node %s for self-closing tag support..."
-       last-named-node-type last-anon-node-type)
-       (or (string= last-anon-node-type "=>")
-           (string= last-anon-node-type "(")
-           (string= last-anon-node-type "?")
-           (string= last-anon-node-type ":")
-           (string= last-anon-node-type "[")
-           (string= last-anon-node-type ",")
-           (string= last-anon-node-type "=")
-           (eq last-named-node-type "jsx_opening_element")
-           (eq last-named-node-type "jsx_closing_element")
-           (eq last-named-node-type "jsx_fragment")
-           (eq last-named-node-type "jsx_expression")))))
-
-(defun tsx-mode-tsx-maybe-insert-self-closing-tag ()
-  "When `tsx-mode-use-jsx-auto-tags' is non-nil, insert a self-closing element
-instead of a plain '<' character (where it makes sense to)."
-  (interactive)
-  (if (or (bobp)
-          (and tsx-mode-use-jsx-auto-tags
-               (tsx-mode--tsx-self-closing-tag-at-point-p)))
-      (progn
-        (insert "</>")
-        (backward-char 2))
-    (insert "<")))
-
-(defun tsx-mode-tsx-maybe-close-tag ()
-  "When `tsx-mode-use-jsx-auto-tags' is non-nil, turn the current self-closing tag
-(if any) into a regular tag instead of inserting a plain '>' character."
-  (interactive)
-  (if (and tsx-mode-use-jsx-auto-tags
-           (tsx-mode--tsx-tag-convert-at-point-p))
-      (let* ((node-element-name
-              (save-excursion
-                (goto-char (treesit-node-start (treesit-node-at (point) 'tsx t)))
-                ;; TODO: there should be a way to use [:word:] here right?
-                (re-search-forward "<\\([-a-zA-Z0-9$_.]+\\)" nil t)
-                (tsx-mode--debug "tag match: %s" (match-data))
-                (match-string 1)))
-             ;; the above will calculate the name of a fragment as "/"
-             (str (format "></%s>" (if (string= node-element-name "/") "" node-element-name))))
-        (re-search-forward "/>" nil t)
-        (delete-char -2)
-        (insert str)
-        (backward-char (- (length str) 1)))
-    (insert ">")))
-
-(defun tsx-mode--tsx-tag-convert-at-point-p ()
-  "Internal function.
-Return t if a self-closing tag at point can be turned into an opening tag and a
-closing tag."
-  (or
-   ;; self-closing tags can be turned into regular tag sets
-   (eq "jsx_self_closing_element"
-       (treesit-node-type (treesit-node-at-pos (point) 'tsx t)))
-     (eq current-named-node-type "jsx_self_closing_element")
-     ;; a "</>" string inserted via `tsx-mode-auto-tags' can be turned into
-     ;; a set of JSX fragment tags
-     (save-excursion
-       (backward-char 1)
-       (looking-at-p "</>"))))
-
-(defun tsx-mode--is-in-jsx-p (&optional maybe-pos)
-  "Internal function.
-Return t if MAYBE-POS is inside a JSX-related tree-sitter node.  MAYBE-POS
-defaults to (`point') if not provided."
-  (let ((pos (or maybe-pos (point))))
-    (and-let* ((current-node (treesit-node-at pos 'tsx t))
-               (current-node-type (treesit-node-type current-node))
-               (is-jsx (or (eq current-node-type "jsx_expression")
-                           (eq current-node-type "jsx_self_closing_element")
-                           (eq current-node-type "jsx_text")))))))
-
-(defun tsx-mode-coverage-toggle ()
-  "Toggles code-coverage overlay."
-  (interactive)
-  (when tsx-mode-use-code-coverage
-    (if coverlay-minor-mode
-        (coverlay-minor-mode 'toggle)
-      (let* ((package-json
-	      (locate-dominating-file
-	       (buffer-file-name (current-buffer))
-	       "package.json"))
-	     (base-path
-	      (when package-json
-	        (expand-file-name package-json)))
-	     (coverage-file
-	      (when base-path
-	        (concat
-	         base-path
-	         "coverage/lcov.info"))))
-        (setq-local coverlay:base-path base-path)
-        (when (and coverage-file
-		   (file-exists-p coverage-file)) ; can't handle nil
-	  (coverlay-watch-file coverage-file))
-        (coverlay-minor-mode 'toggle)))))
-
-(defun tsx-mode-fold-toggle-node (buffer point)
-  "Delegates to `origami-toggle-node' when `tsx-mode-use-code-folding' is
-enabled."
-  (interactive (list (current-buffer) (point)))
-  (when tsx-mode-use-code-folding
-    (origami-toggle-node buffer point)))
-
-(defun tsx-mode-fold-toggle-all-nodes (buffer)
-  "Delegates to `origami-toggle-all-nodes' when `tsx-mode-use-code-folding' is
-enabled."
-  (interactive (list (current-buffer)))
-  (when tsx-mode-use-code-folding
-    (origami-toggle-all-nodes buffer)))
+   :feature 'bracket
+   '((["(" ")" "[" "]" "{" "}"]) @font-lock-bracket-face))
+  "Internal variable.  Tree-sitter font-lock settings for CSS-in-JS.  Copied
+   from `css-ts-mode', in where they are not available as a separate variable.")
 
 
-(defun tsx-mode--eglot-configure ()
-  "Internal function.  Configures some eglot-related variables after that minor
-mode has been enabled."
-  ;; eglot adds its own capf to the head of `completion-at-point-functions'
-  ;; which always returns something, meaning other capfs never get invoked.
-  ;; that is not what we want for css-in-js-mode
-  (setq-local
-   completion-at-point-functions
-   '(css-in-js-mode--capf eglot-completion-at-point t))
-  ;; eglot sets its own value for `eldoc-documentation-strategy' which causes
-  ;; diagnostic messages to be hidden in favor of docstrings.  show both instead
-  (when tsx-mode-use-own-documentation-strategy
-    (tsx-mode--debug "configuring eldoc-documentation-strategy")
-    (setq-local
-     eldoc-documentation-strategy
-     'eldoc-documentation-compose)))
+(defun tsx-mode--css-font-lock-value (node override start end &rest _unused)
+	"Internal function.  Apply font-locking to some CSS property values."
+	;; n.b. this function should really be named 'tsx-mode/css-font-lock-value' to
+	;; indicate that it's an internal-only function, but treesit doesn't seem to
+	;; like functions with '/' characters in their names to be used as captures
+	(let* ((node-text (treesit-node-text node t))
+				 (node-type (treesit-node-type node))
+				 (node-start (treesit-node-start node))
+				 (node-end (treesit-node-end node)))
+		(when (or (eq tsx-mode-enable-css-in-js-font-lock t)
+							(and tsx-mode/current-range
+									 (eq tsx-mode-enable-css-in-js-font-lock 'when-in-range)))
+			(add-text-properties node-start
+													 node-end
+													 (cond
+														((or (string= node-type "color_value")
+																 (member node-text x-colors))
+														 `(face (:background
+																		 ,node-text ; uses text value as bgcolor
+																		 :foreground
+																		 ,(readable-foreground-color node-text))))
+														((or (string= node-text "auto")
+																 (string= node-text "inherit")
+																 (string= node-text "initial")
+																 (string= node-text "unset"))
+														 '(face font-lock-keyword-face))
+														(t '(face font-lock-variable-name-face)))))))
 
+(defun tsx-mode/capf-css ()
+	"Internal function.  completion-at-point function for CSS-in-JS embedded
+   ranges."
+	(or
+	 ;; CSS property name completion
+	 ;; the original expects properties to be preceded with a '{' or ';' which
+	 ;; will not be true for most CSS properties in CSS-in-JS ranges.  we need to
+	 ;; search for backticks too.  (technically what we need to search for is the
+	 ;; range delimiter, but that delimiter is a backtick in all currently-
+	 ;; supported cases)
+	 (save-excursion
+		 (let ((pos (point)))
+			 (skip-chars-backward "-[:alnum:]")
+			 (let ((start (point)))
+				 (skip-chars-backward " \t\r\n")
+         (when (memq (char-before)
+										 '(?\{ ?\; ?\`))
+           (list start
+								 pos
+								 css-property-ids)))))
+		 ;; CSS property value completion
+		 ;; the original uses `syntax-ppss' to restrict the lookback area, which
+		 ;; seems to apply to tsx sexps instead of css-in-js ones we want
+	 (save-excursion
+		 (save-match-data
+			 (let ((property (and (looking-back "\\([[:alnum:]-]+\\):.*"
+																					(min (point)
+																							 (or (car tsx-mode/current-range)
+																									 most-positive-fixnum))
+																					t)
+														(member (match-string-no-properties 1)
+																		css-property-ids))))
+				 (when property
+					 (let ((end (point)))
+						 (save-excursion
+							 (skip-chars-backward "[:graph:]")
+							 (list (point)
+										 end
+										 (append '("inherit" "initial" "unset")
+														 (css--property-values (car property))))))))))
+	 ;; try the native css-mode capf
+	 (css--complete-property)))
+
+(defun tsx-mode/language-at-point-function (pos)
+	"Internal function.  Calculates the treesit language at POS."
+	(if (seq-find (lambda (el)
+									(treesit-query-range 'tsx
+																			 el
+																			 pos
+																			 (1+ pos)))
+								tsx-mode/css-queries)
+			'css-in-js
+		'tsx))
+
+(defun tsx-mode/get-current-range ()
+	"Internal function.  Recalculates the treesit embedded range containing point,
+   if any."
+	(let* ((pos (point))
+				 (next-range nil))
+		(seq-find (lambda (el)
+								(setq next-range
+											(car (treesit-query-range 'tsx
+																								el
+																								pos
+																								(1+ pos)))))
+							tsx-mode/css-queries)
+		next-range))
+
+(defun tsx-mode/post-command-hook ()
+	"Internal function.  Performs some tasks related to range tracking and font-
+   locking after a change in point."
+	(let ((prev-range tsx-mode/current-range))
+		(setq-local tsx-mode/current-range (tsx-mode/get-current-range))
+		(when prev-range
+			(save-excursion
+				(treesit-font-lock-fontify-region (car prev-range)
+																					(cdr prev-range))))
+		(when tsx-mode/current-range
+			(save-excursion
+				(treesit-font-lock-fontify-region (car tsx-mode/current-range)
+																					(cdr tsx-mode/current-range))))))
+
+(defun tsx-mode/capf ()
+	"Internal function.  completion-at-point function for embedded treesit ranges.
+
+   This function is suitable for use in `completion-at-point-functions'."
+	(or (tsx-mode/capf-css)))
+
+(defun tsx-mode/eglot-managed-mode-hook ()
+	"Internal function.  Override some things which `eglot-ensure' does for us, to
+   preserve awareness of embedded treesit regions."
+	(add-to-list 'completion-at-point-functions
+							 #'tsx-mode/capf))
 
 ;;;###autoload
 (define-derived-mode
-  tsx-mode tsx-ts-mode "TSX"
-  "A batteries-included major mode for TSX and friends."
-  :group 'tsx-mode
-  (when tsx-mode-use-key-commands
-    (tsx-mode--debug "configuring keyboard shurtcuts")
-    (define-key
-     tsx-mode-map
-     (kbd "C-c t f")
-     #'tsx-mode-fold-toggle-node)
-    (define-key
-     tsx-mode-map
-     (kbd "C-c t F")
-     #'tsx-mode-fold-toggle-all-nodes)
-    (define-key
-     tsx-mode-map
-     (kbd "C-c t c")
-     #'tsx-mode-coverage-toggle)
-    (define-key
-     tsx-mode-map
-     (kbd "<")
-     #'tsx-mode-tsx-maybe-insert-self-closing-tag)
-    (define-key
-     tsx-mode-map
-     (kbd ">")
-     #'tsx-mode-tsx-maybe-close-tag))
-  (when tsx-mode-use-code-folding
-    (tsx-mode--debug "configuring code-folding")
-    (add-to-list
-     'origami-parser-alist
-     '(tsx-mode . tsx-mode--origami-parser))
-    (setq tsx-mode--code-fold-query
-          (treesit-query-compile
-           'tsx
-           (string-join
-            tsx-mode-code-fold-queries)))
-    (origami-mode t))
-  (when tsx-mode-use-code-coverage
-    (tsx-mode--debug "configuring code-coverage overlay")
-    (coverlay-minor-mode t))
-  (when tsx-mode-use-completion
-    (tsx-mode--debug "configuring corfu")
-    (corfu-mode t)
-    (corfu-popupinfo-mode t))
-  (when tsx-mode-use-css-in-js
-    (tsx-mode--debug "configuring css-in-js-mode")
-    (css-in-js-mode-fetch-shared-library)
-    (css-in-js-mode t))
-  (when tsx-mode-use-lsp
-    (add-hook
-     'eglot-managed-mode-hook
-     #'tsx-mode--eglot-configure
-     nil t)
-    (eglot-ensure))
-  ;; some extra tsx indent rules until emacs gets patched
-  (setf
-   (cdr (assoc 'tsx treesit-simple-indent-rules))
-   (append
-    (cdr (assoc 'tsx treesit-simple-indent-rules))
-    '(
-      ((parent-is "jsx_opening_element") parent typescript-ts-mode-indent-offset)
-      ((parent-is "jsx_self_closing_element") parent typescript-ts-mode-indent-offset)
-      ((parent-is "switch_body") parent-bol typescript-ts-mode-indent-offset)
-      ((parent-is "export_clause") parent-bol typescript-ts-mode-indent-offset)
-      )))
-  (treesit-major-mode-setup))
+	tsx-mode tsx-ts-mode "TSX"
+	"A batteries-included major mode for TSX and friends."
+	:group 'tsx-mode
+	(unless (treesit-ready-p 'css-in-js)
+		(error "CSS-in-JS parser not ready"))
+	(setq-local
+	 treesit--indent-verbose t
+	 treesit-language-at-point-function #'tsx-mode/language-at-point-function
+	 treesit-range-settings (apply #'treesit-range-rules
+																 (seq-reduce (lambda (acc el)
+																							 (append acc
+																											 (list :host 'tsx
+																														 :embed 'css-in-js
+																														 :offset '(1 . -1)
+																														 :local t
+																														 el)))
+																						 tsx-mode/css-queries
+																						 '())))
+	(when tsx-mode-enable-css-in-js-font-lock
+		(setq-local treesit-font-lock-settings (append treesit-font-lock-settings
+																									 (apply 'treesit-font-lock-rules
+																													tsx-mode/css-font-lock-rules))))
+	(push tsx-mode/css-indent-rules
+				treesit-simple-indent-rules)
+	(push `(css-in-js (text "\\(?:comment\\)" 'symbols))
+				treesit-thing-settings)
+	(treesit-update-ranges)
+	(add-hook 'post-command-hook
+						#'tsx-mode/post-command-hook nil t)
+	(when tsx-mode-enable-lsp
+		(add-hook 'eglot-managed-mode-hook
+							#'tsx-mode/eglot-managed-mode-hook nil t)
+		(eglot-ensure))
+	(when tsx-mode-enable-folding
+		(require 'treesit-fold)
+		(define-key tsx-mode-map
+								(kbd "C-c t f")
+								#'treesit-fold-toggle)
+		(define-key tsx-mode-map
+								(kbd "C-c t F")
+								#'treesit-fold-open-all)
+		(treesit-fold-mode t)))
 
 ;;;###autoload
-(with-eval-after-load 'eglot
- (add-to-list
-  'eglot-server-programs
-  '(tsx-mode "typescript-language-server" "--stdio")))
+(progn
+	(with-eval-after-load 'eglot
+		(add-to-list 'eglot-server-programs
+								 '(tsx-mode "typescript-language-server" "--stdio")))
+	(with-eval-after-load 'treesit-fold
+		(add-to-list 'treesit-fold-range-alist
+								 `(tsx-mode . ,(cdar (alist-get 'tsx-ts-mode
+																								treesit-fold-range-alist))))))
 
 (provide 'tsx-mode)
-;;; tsx-mode.el ends here
+;; tsx-mode.el ends here

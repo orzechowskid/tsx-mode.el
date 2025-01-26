@@ -13,14 +13,16 @@
 
 ## Installation
 
-this branch of code is intended for emacs version 29 or newer.  support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
+this branch of code is intended for emacs version 30 or newer.
+
+- support for emacs version 29 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs29](https://github.com/orzechowskid/tsx-mode.el/tree/emacs29).
+- support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
 
 ### Dependencies
 
- - Emacs 29 or newer, compiled with treesit support
+ - Emacs 30 or newer, compiled with treesit support
+ - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
  - [`coverlay`](https://github.com/twada/coverlay.el) (available on MELPA)
- - [`css-in-js-mode`](https://github.com/orzechowskid/tree-sitter-css-in-js)
- - [`origami.el`](https://github.com/gregsexton/origami.el) (available on MELPA)
 
 ### Download
 
@@ -28,7 +30,14 @@ download this package and place the .el files from it in a directory on your loa
 
 > or install this repository (and all its package dependencies) via `straight.el`:
 >
-> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))`
+> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30"))`
+
+> or combine `straight.el` with emacs' own `use-package`:
+>
+> ```
+(use-package tsx-mode
+```
+>
 
 ### Require
 
