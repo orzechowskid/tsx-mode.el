@@ -21,7 +21,6 @@ this branch of code is intended for emacs version 30 or newer.
 
  - Emacs 30 or newer, compiled with treesit support
  - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
- - [`coverlay`](https://github.com/twada/coverlay.el) (available on MELPA)
 
 ### Download
 
