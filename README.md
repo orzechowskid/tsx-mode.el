@@ -4,11 +4,10 @@
 ![](https://repository-images.githubusercontent.com/461083728/2a857234-2563-48bb-9b1f-6a69266cb543)
 
 ## Features
-- code analysis and completion
+- code analysis and completion via eglot
 - syntax highlighting
-- indentation (including JSX/TSX)
+- indentation
 - code folding
-- code-coverage overlays
 - syntax highlighting, indentation, and code completion for CSS-in-JS tagged template strings
 
 ## Installation
@@ -26,18 +25,13 @@ this branch of code is intended for emacs version 30 or newer.
 
 ### Download
 
-download this package and place the .el files from it in a directory on your load-path.
+download this package and place the .el file from it in a directory on your load-path.
 
+> [!TIP]
 > or install this repository (and all its package dependencies) via `straight.el`:
->
-> `(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30"))`
-
-> or combine `straight.el` with emacs' own `use-package`:
->
-> ```
-(use-package tsx-mode
 ```
->
+(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30"))
+```
 
 ### Require
 
@@ -51,19 +45,30 @@ download this package and place the .el files from it in a directory on your loa
 
 `(add-to-list 'auto-mode-alist '("\\.[jt]s[x]?\\'" . tsx-mode)`
 
+> [!TIP]
+> many of these steps, plus others, can be combined into a single step if you use `straight.el` with emacs' own `use-package`:
+```
+(use-package tsx-mode
+  :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30")
+  :defer t
+  :mode "\\.tsx\\'"
+  :custom
+  (tsx-mode-enable-css-in-js-font-lock t))
+```
+
 ## Keybindings
 
 all tsx-mode keybindings live under the `C-c t` prefix.
 
 | Binding   | Function                   | Purpose                                |
 | --        | --                         | --                                     |
-| `C-c t f` | `origami-toggle-node`      | toggle code-folding for current region |
-| `C-c t F` | `origami-toggle-all-nodes` | toggle code-folding for all regions    |
-| `C-c t c` | `tsx-mode-coverage-toggle` | toggle code-coverage overlay           |
+| `C-c t f` | `treesit-fold-toggle`      | toggle code-folding for current region |
+| `C-c t F` | `treesit-fold-open-all`    | toggle code-folding for all regions    |
 
 ## Configuration
 
 Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
+
 
 ## License
 
