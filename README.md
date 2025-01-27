@@ -12,7 +12,7 @@
 
 ## Installation
 
-this branch of code is intended for emacs version 30 or newer.
+this branch of code is intended for emacs version 30 or newer.  this branch is also the active development branch; code is subject to change and breakage.
 
 - support for emacs version 29 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs29](https://github.com/orzechowskid/tsx-mode.el/tree/emacs29).
 - support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
@@ -45,14 +45,14 @@ download this package and place the .el file from it in a directory on your load
 `(add-to-list 'auto-mode-alist '("\\.[jt]s[x]?\\'" . tsx-mode)`
 
 > [!TIP]
-> many of these steps, plus others, can be combined into a single step if you use `straight.el` with emacs' own `use-package`:
+> all of these steps, plus others, can be combined into a single step if you use `straight.el` with emacs' own `use-package`:
 ```
 (use-package tsx-mode
   :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30")
   :defer t
   :mode "\\.tsx\\'"
   :custom
-  (tsx-mode-enable-css-in-js-font-lock t))
+  (tsx-mode-enable-css-in-js t))
 ```
 
 ## Keybindings

@@ -17,10 +17,10 @@
 (require 'treesit)
 
 
-(defcustom tsx-mode-enable-css-in-js-font-lock
+(defcustom tsx-mode-enable-css-in-js
 	t
-	"Conditionally or unconditionally enable or disable syntax highlighting for
-   CSS-in-JS ranges."
+	"Conditionally or unconditionally enable or disable tracking of CSS-in-JS
+   ranges."
 	:type '(choice (const :tag "Never" nil)
 								 (const :tag "When point is in a range" when-in-range)
 								 (const :tag "Always" t)))
@@ -211,14 +211,40 @@
 
 (defun tsx-mode/language-at-point-function (pos)
 	"Internal function.  Calculates the treesit language at POS."
-	(if (seq-find (lambda (el)
-									(treesit-query-range 'tsx
-																			 el
-																			 pos
-																			 (1+ pos)))
-								tsx-mode/css-queries)
-			'css-in-js
-		'tsx))
+	(let ((next-range nil))
+		(seq-find (lambda (el)
+								(setq next-range
+											(car (treesit-query-range 'tsx
+																								el
+																								pos
+																								(1+ pos)))))
+							tsx-mode/css-queries)
+		(if next-range
+				(cond ((eq tsx-mode-enable-css-in-js t)
+							 'css-in-js)
+							((and (eq tsx-mode-enable-css-in-js 'when-in-range)
+										tsx-mode/current-range
+										(> pos (car tsx-mode/current-range))
+										(< pos (cdr tsx-mode/current-range)))
+							 'css-in-js)
+							(nil
+							 'tsx))
+			'tsx)))
+
+;; (and next-range
+;; 						 (or (eq tsx-mode-enable-enable-css-in-js-font-lock t)
+;; 								 (and
+				
+;; 		next-range))
+;; 	(if (seq-find (lambda (el)
+;; 									(treesit-query-range 'tsx
+;; 																			 el
+;; 																			 pos
+;; 																			 (1+ pos)))
+;; 								tsx-mode/css-queries)
+;; 			(
+;; 			'css-in-js
+;; 		'tsx))
 
 (defun tsx-mode/get-current-range ()
 	"Internal function.  Recalculates the treesit embedded range containing point,
@@ -280,17 +306,17 @@
 																														 el)))
 																						 tsx-mode/css-queries
 																						 '())))
-	(when tsx-mode-enable-css-in-js-font-lock
-		(setq-local treesit-font-lock-settings (append treesit-font-lock-settings
-																									 (apply 'treesit-font-lock-rules
-																													tsx-mode/css-font-lock-rules))))
-	(push tsx-mode/css-indent-rules
-				treesit-simple-indent-rules)
-	(push `(css-in-js (text "\\(?:comment\\)" 'symbols))
-				treesit-thing-settings)
-	(treesit-update-ranges)
 	(add-hook 'post-command-hook
 						#'tsx-mode/post-command-hook nil t)
+	(when tsx-mode-enable-css-in-js
+		(setq-local treesit-font-lock-settings (append treesit-font-lock-settings
+																									 (apply 'treesit-font-lock-rules
+																													tsx-mode/css-font-lock-rules)))
+		(push tsx-mode/css-indent-rules
+					treesit-simple-indent-rules)
+		(push `(css-in-js (text "\\(?:comment\\)" 'symbols))
+					treesit-thing-settings)
+			(treesit-update-ranges))
 	(when tsx-mode-enable-lsp
 		(add-hook 'eglot-managed-mode-hook
 							#'tsx-mode/eglot-managed-mode-hook nil t)
@@ -312,8 +338,8 @@
 								 '(tsx-mode "typescript-language-server" "--stdio")))
 	(with-eval-after-load 'treesit-fold
 		(add-to-list 'treesit-fold-range-alist
-								 `(tsx-mode . ,(cdar (alist-get 'tsx-ts-mode
-																								treesit-fold-range-alist))))))
+								 `(tsx-mode . ,(alist-get 'tsx-ts-mode
+																					treesit-fold-range-alist)))))
 
 (provide 'tsx-mode)
 ;; tsx-mode.el ends here
