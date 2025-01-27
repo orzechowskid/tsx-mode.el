@@ -1,7 +1,7 @@
 
 # tsx-mode.el: a batteries-included Emacs major mode for TSX/JSX files
 
-![](https://repository-images.githubusercontent.com/461083728/2a857234-2563-48bb-9b1f-6a69266cb543)
+![](https://repository-images.githubusercontent.com/461083728/b350b218-88fa-4c0e-bf8a-ade60426a15d)
 
 ## Features
 - code analysis and completion via eglot
