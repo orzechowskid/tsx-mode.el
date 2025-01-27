@@ -13,11 +13,14 @@
 
 ## Installation
 
-this branch of code is intended for emacs version 29 or newer.  support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
+this branch of code is intended for emacs version 29.
+
+- support for emacs 30 and newer can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs30](https://github.com/orzechowskid/tsx-mode.el/tree/emacs30).
+- support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
 
 ### Dependencies
 
- - Emacs 29 or newer, compiled with treesit support
+ - Emacs 29, compiled with treesit support
  - [`coverlay`](https://github.com/twada/coverlay.el) (available on MELPA)
  - [`css-in-js-mode`](https://github.com/orzechowskid/tree-sitter-css-in-js)
  - [`origami.el`](https://github.com/gregsexton/origami.el) (available on MELPA)
