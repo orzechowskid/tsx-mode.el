@@ -147,9 +147,9 @@
 				 (node-type (treesit-node-type node))
 				 (node-start (treesit-node-start node))
 				 (node-end (treesit-node-end node)))
-		(when (or (eq tsx-mode-enable-css-in-js-font-lock t)
+		(when (or (eq tsx-mode-enable-css-in-js t)
 							(and tsx-mode/current-range
-									 (eq tsx-mode-enable-css-in-js-font-lock 'when-in-range)))
+									 (eq tsx-mode-enable-css-in-js 'when-in-range)))
 			(add-text-properties node-start
 													 node-end
 													 (cond
@@ -230,21 +230,6 @@
 							(nil
 							 'tsx))
 			'tsx)))
-
-;; (and next-range
-;; 						 (or (eq tsx-mode-enable-enable-css-in-js-font-lock t)
-;; 								 (and
-				
-;; 		next-range))
-;; 	(if (seq-find (lambda (el)
-;; 									(treesit-query-range 'tsx
-;; 																			 el
-;; 																			 pos
-;; 																			 (1+ pos)))
-;; 								tsx-mode/css-queries)
-;; 			(
-;; 			'css-in-js
-;; 		'tsx))
 
 (defun tsx-mode/get-current-range ()
 	"Internal function.  Recalculates the treesit embedded range containing point,
