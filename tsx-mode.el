@@ -294,7 +294,7 @@
 	(unless (treesit-ready-p 'css-in-js)
 		(error "CSS-in-JS parser not ready"))
 	(setq-local
-	 treesit--indent-verbose t
+	 treesit-primary-parser (treesit-parser-create 'tsx)
 	 treesit-language-at-point-function #'tsx-mode/language-at-point-function
 	 treesit-range-settings (apply #'treesit-range-rules
 																 (seq-reduce (lambda (acc el)
