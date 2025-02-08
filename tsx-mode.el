@@ -169,45 +169,46 @@
 (defun tsx-mode/capf-css ()
 	"Internal function.  completion-at-point function for CSS-in-JS embedded
    ranges."
-	(or
-	 ;; CSS property name completion
-	 ;; the original expects properties to be preceded with a '{' or ';' which
-	 ;; will not be true for most CSS properties in CSS-in-JS ranges.  we need to
-	 ;; search for backticks too.  (technically what we need to search for is the
-	 ;; range delimiter, but that delimiter is a backtick in all currently-
-	 ;; supported cases)
-	 (save-excursion
-		 (let ((pos (point)))
-			 (skip-chars-backward "-[:alnum:]")
-			 (let ((start (point)))
-				 (skip-chars-backward " \t\r\n")
-         (when (memq (char-before)
-										 '(?\{ ?\; ?\`))
-           (list start
-								 pos
-								 css-property-ids)))))
+	(when tsx-mode/current-range
+		(or
+		 ;; CSS property name completion
+		 ;; the original expects properties to be preceded with a '{' or ';' which
+		 ;; will not be true for most CSS properties in CSS-in-JS ranges.  we need to
+		 ;; search for backticks too.  (technically what we need to search for is the
+		 ;; range delimiter, but that delimiter is a backtick in all currently-
+		 ;; supported cases)
+		 (save-excursion
+			 (let ((pos (point)))
+				 (skip-chars-backward "-[:alnum:]")
+				 (let ((start (point)))
+					 (skip-chars-backward " \t\r\n")
+					 (when (memq (char-before)
+											 '(?\{ ?\; ?\`))
+						 (list start
+									 pos
+									 css-property-ids)))))
 		 ;; CSS property value completion
 		 ;; the original uses `syntax-ppss' to restrict the lookback area, which
 		 ;; seems to apply to tsx sexps instead of css-in-js ones we want
-	 (save-excursion
-		 (save-match-data
-			 (let ((property (and (looking-back "\\([[:alnum:]-]+\\):.*"
-																					(min (point)
-																							 (or (car tsx-mode/current-range)
-																									 most-positive-fixnum))
-																					t)
-														(member (match-string-no-properties 1)
-																		css-property-ids))))
-				 (when property
-					 (let ((end (point)))
-						 (save-excursion
-							 (skip-chars-backward "[:graph:]")
-							 (list (point)
-										 end
-										 (append '("inherit" "initial" "unset")
-														 (css--property-values (car property))))))))))
-	 ;; try the native css-mode capf
-	 (css--complete-property)))
+		 (save-excursion
+			 (save-match-data
+				 (let ((property (and (looking-back "\\([[:alnum:]-]+\\):.*"
+																						(min (point)
+																								 (or (car tsx-mode/current-range)
+																										 most-positive-fixnum))
+																						t)
+															(member (match-string-no-properties 1)
+																			css-property-ids))))
+					 (when property
+						 (let ((end (point)))
+							 (save-excursion
+								 (skip-chars-backward "[:graph:]")
+								 (list (point)
+											 end
+											 (append '("inherit" "initial" "unset")
+															 (css--property-values (car property))))))))))
+		 ;; try the native css-mode capf
+		 (css--complete-property))))
 
 (defun tsx-mode/language-at-point-function (pos)
 	"Internal function.  Calculates the treesit language at POS."
