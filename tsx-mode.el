@@ -172,7 +172,7 @@
 	(when tsx-mode/current-range
 		(or
 		 ;; CSS property name completion
-		 ;; the original expects properties to be preceded with a '{' or ';' which
+		 ;; css-mode's capf expects properties to be preceded with a '{' or ';' which
 		 ;; will not be true for most CSS properties in CSS-in-JS ranges.  we need to
 		 ;; search for backticks too.  (technically what we need to search for is the
 		 ;; range delimiter, but that delimiter is a backtick in all currently-
@@ -300,8 +300,8 @@
 																													tsx-mode/css-font-lock-rules)))
 		(push tsx-mode/css-indent-rules
 					treesit-simple-indent-rules)
-		(push `(css-in-js (text "\\(?:comment\\)" 'symbols))
-					treesit-thing-settings)
+		;; (push `(css-in-js (text "\\(?:comment\\)" 'symbols))
+		;; 			treesit-thing-settings)
 			(treesit-update-ranges))
 	(when tsx-mode-enable-lsp
 		(add-hook 'eglot-managed-mode-hook
@@ -315,6 +315,9 @@
 		(define-key tsx-mode-map
 								(kbd "C-c t F")
 								#'treesit-fold-open-all)
+		(define-key tsx-mode-map
+								(kbd "C-c t x")
+								#'eglot-code-actions)
 		(treesit-fold-mode t)))
 
 ;;;###autoload

@@ -63,6 +63,7 @@ all tsx-mode keybindings live under the `C-c t` prefix.
 | --        | --                         | --                                     |
 | `C-c t f` | `treesit-fold-toggle`      | toggle code-folding for current region |
 | `C-c t F` | `treesit-fold-open-all`    | toggle code-folding for all regions    |
+| `C-c t x` | `eglot-code-actions`       | perform an LSP code action at point    |
 
 ## Configuration
 
