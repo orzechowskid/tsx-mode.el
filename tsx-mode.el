@@ -216,8 +216,8 @@
 								(setq next-range
 											(car (treesit-query-range 'tsx
 																								el
-																								pos
-																								(1+ pos)))))
+																								(min pos (1- (buffer-size)))
+																								(min (1+ pos) (1- (buffer-size)))))))
 							tsx-mode/css-queries)
 		(if next-range
 				(cond ((eq tsx-mode-enable-css-in-js t)
@@ -240,8 +240,8 @@
 								(setq next-range
 											(car (treesit-query-range 'tsx
 																								el
-																								pos
-																								(1+ pos)))))
+																								(min pos (1- (buffer-size)))
+																								(min (1+ pos) (1- (buffer-size)))))))
 							tsx-mode/css-queries)
 		next-range))
 
