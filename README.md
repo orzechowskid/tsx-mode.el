@@ -9,6 +9,7 @@
 - indentation
 - code folding
 - syntax highlighting, indentation, and code completion for CSS-in-JS tagged template strings
+- code-coverage indicators (experimental)
 
 ## Installation
 
@@ -21,6 +22,7 @@ this branch of code is intended for emacs version 30 or newer.  this branch is a
 
  - Emacs 30 or newer, compiled with treesit support
  - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
+ - [`cov`](https://github.com/AdamNiederer/cov)
 
 ### Download
 
