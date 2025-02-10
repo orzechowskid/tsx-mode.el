@@ -6,7 +6,7 @@
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0"))
 
 ;;; Commentary:
 
@@ -15,6 +15,9 @@
 (require 'css-mode)
 (require 'eglot)
 (require 'treesit)
+
+(require 'cov)
+(require 'treesit-fold)
 
 
 (defcustom tsx-mode-enable-css-in-js
@@ -28,6 +31,10 @@
 (defcustom tsx-mode-enable-folding
 	t
 	"Enable or disable code folding for blocks, functions, etc.")
+
+(defcustom tsx-mode-enable-coverage
+	nil
+	"Experimental.  Enable or disable code-coverage tools.")
 
 (defcustom tsx-mode-enable-lsp
 	t
@@ -272,6 +279,23 @@
 	(add-to-list 'completion-at-point-functions
 							 #'tsx-mode/capf))
 
+(defun tsx-mode/coverage-find-clover (buffer-file-dir buffer-file-name)
+	(let ((clover-file-path (concat (locate-dominating-file buffer-file-dir
+																													"package.json")
+																	(file-name-as-directory "coverage")
+																	"clover.xml")))
+		(when (file-exists-p clover-file-path)
+			(cons clover-file-path 'clover))))
+
+(defun tsx-mode/coverage-find-lcov (buffer-file-dir buffer-file-name)
+	(let ((lcov-file-path (concat (locate-dominating-file buffer-file-dir
+																												"package.json")
+																(file-name-as-directory "coverage")
+																"lcov.info")))
+		(when (file-exists-p lcov-file-path)
+			(cons lcov-file-path 'lcov))))
+
+
 ;;;###autoload
 (define-derived-mode
 	tsx-mode tsx-ts-mode "TSX"
@@ -307,8 +331,14 @@
 		(add-hook 'eglot-managed-mode-hook
 							#'tsx-mode/eglot-managed-mode-hook nil t)
 		(eglot-ensure))
+	(when tsx-mode-enable-coverage
+		(add-to-list 'cov-coverage-file-paths
+								 #'tsx-mode/coverage-find-clover)
+		(add-to-list 'cov-coverage-file-paths
+								 #'tsx-mode/coverage-find-lcov)
+		(setq-local cov-coverage-mode t)
+		(cov-mode t))
 	(when tsx-mode-enable-folding
-		(require 'treesit-fold)
 		(define-key tsx-mode-map
 								(kbd "C-c t f")
 								#'treesit-fold-toggle)
