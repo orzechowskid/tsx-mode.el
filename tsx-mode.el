@@ -318,6 +318,15 @@
 																						 '())))
 	(add-hook 'post-command-hook
 						#'tsx-mode/post-command-hook nil t)
+	;; tell project.el how to find non-vc projects, and to ignore contents of any
+	;; node_modules directories
+	(setq-local
+	 project-vc-ignores '("node_modules"))
+	(add-to-list (make-local-variable 'project-find-functions)
+							 (lambda (dir)
+								 (when-let ((package-json-dir (locate-dominating-file dir "package.json")))
+									 `(transient . ,package-json-dir))))
+	;; conditionally enable some features
 	(when tsx-mode-enable-css-in-js
 		(setq-local treesit-font-lock-settings (append treesit-font-lock-settings
 																									 (apply 'treesit-font-lock-rules
