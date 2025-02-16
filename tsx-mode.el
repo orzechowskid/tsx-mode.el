@@ -219,39 +219,42 @@
 
 (defun tsx-mode/language-at-point-function (pos)
 	"Internal function.  Calculates the treesit language at POS."
-	(let ((next-range nil))
-		(seq-find (lambda (el)
-								(setq next-range
-											(car (treesit-query-range 'tsx
-																								el
-																								(min pos (1- (buffer-size)))
-																								(min (1+ pos) (1- (buffer-size)))))))
-							tsx-mode/css-queries)
-		(if next-range
-				(cond ((eq tsx-mode-enable-css-in-js t)
-							 'css-in-js)
-							((and (eq tsx-mode-enable-css-in-js 'when-in-range)
-										tsx-mode/current-range
-										(> pos (car tsx-mode/current-range))
-										(< pos (cdr tsx-mode/current-range)))
-							 'css-in-js)
-							(nil
-							 'tsx))
-			'tsx)))
+	(if (> (buffer-size) 0)
+		(let ((next-range nil))
+			(seq-find (lambda (el)
+									(setq next-range
+												(car (treesit-query-range 'tsx
+																									el
+																									(min pos (1- (buffer-size)))
+																									(min (1+ pos) (1- (buffer-size)))))))
+								tsx-mode/css-queries)
+			(if next-range
+					(cond ((eq tsx-mode-enable-css-in-js t)
+								 'css-in-js)
+								((and (eq tsx-mode-enable-css-in-js 'when-in-range)
+											tsx-mode/current-range
+											(> pos (car tsx-mode/current-range))
+											(< pos (cdr tsx-mode/current-range)))
+								 'css-in-js)
+								(nil
+								 'tsx))
+				'tsx))
+		'tsx))
 
 (defun tsx-mode/get-current-range ()
 	"Internal function.  Recalculates the treesit embedded range containing point,
    if any."
-	(let* ((pos (point))
-				 (next-range nil))
-		(seq-find (lambda (el)
-								(setq next-range
-											(car (treesit-query-range 'tsx
-																								el
-																								(min pos (1- (buffer-size)))
-																								(min (1+ pos) (1- (buffer-size)))))))
-							tsx-mode/css-queries)
-		next-range))
+	(when (> (buffer-size) 0)
+		(let* ((pos (point))
+					 (next-range nil))
+			(seq-find (lambda (el)
+									(setq next-range
+												(car (treesit-query-range 'tsx
+																									el
+																									(min pos (1- (buffer-size)))
+																									(min (1+ pos) (1- (buffer-size)))))))
+								tsx-mode/css-queries)
+			next-range)))
 
 (defun tsx-mode/post-command-hook ()
 	"Internal function.  Performs some tasks related to range tracking and font-
