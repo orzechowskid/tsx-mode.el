@@ -219,7 +219,7 @@
 
 (defun tsx-mode/language-at-point-function (pos)
 	"Internal function.  Calculates the treesit language at POS."
-	(if (> (buffer-size) 0)
+	(if (> (buffer-size) 1)
 		(let ((next-range nil))
 			(seq-find (lambda (el)
 									(setq next-range
@@ -244,7 +244,7 @@
 (defun tsx-mode/get-current-range ()
 	"Internal function.  Recalculates the treesit embedded range containing point,
    if any."
-	(when (> (buffer-size) 0)
+	(when (> (buffer-size) 1)
 		(let* ((pos (point))
 					 (next-range nil))
 			(seq-find (lambda (el)
