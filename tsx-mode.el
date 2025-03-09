@@ -327,7 +327,7 @@
 	 project-vc-ignores '("node_modules"))
 	(add-to-list (make-local-variable 'project-find-functions)
 							 (lambda (dir)
-								 (when-let ((package-json-dir (locate-dominating-file dir "package.json")))
+								 (when-let* ((package-json-dir (locate-dominating-file dir "package.json")))
 									 `(transient . ,package-json-dir))))
 	;; conditionally enable some features
 	(when tsx-mode-enable-css-in-js
