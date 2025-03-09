@@ -279,6 +279,7 @@
 (defun tsx-mode/eglot-managed-mode-hook ()
 	"Internal function.  Override some things which `eglot-ensure' does for us, to
    preserve awareness of embedded treesit regions."
+	(setq-local eglot-code-action-indications '(margin))
 	(add-to-list 'completion-at-point-functions
 							 #'tsx-mode/capf))
 
