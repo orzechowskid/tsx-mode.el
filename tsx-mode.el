@@ -1,14 +1,19 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 4.0.0
+;;; Version: 4.1.0
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-eslint "1.7.0"))
 
 ;;; Commentary:
+
+;; CSS-in-JS linting is currently marked as experimental since it relies on a
+;; package not currently published on ELPA or MELPA (namely, `flymake-stylelint'.
+;; if you want to enable `tsx-mode-enable-css-in-js-linting' then you'll have to
+;; install that package yourself (either manually or via `use-package').
 
 ;;; Code:
 
@@ -17,6 +22,7 @@
 (require 'treesit)
 
 (require 'cov)
+(require 'flymake-eslint)
 (require 'treesit-fold)
 
 
@@ -27,6 +33,14 @@
 	:type '(choice (const :tag "Never" nil)
 								 (const :tag "When point is in a range" when-in-range)
 								 (const :tag "Always" t)))
+
+(defcustom tsx-mode-enable-js-linting
+	t
+	"Enable or disable lint reports for Javascript/Typescript.")
+
+(defcustom tsx-mode-enable-css-in-js-linting
+	nil
+	"Enable or disable lint reports for CSS-in-JS.  (experimental)")
 
 (defcustom tsx-mode-enable-folding
 	t
@@ -351,6 +365,10 @@
 								 #'tsx-mode/coverage-find-lcov)
 		(setq-local cov-coverage-mode t)
 		(cov-mode t))
+	(when tsx-mode-enable-js-linting
+		(flymake-eslint-enable))
+	(when tsx-mode-enable-css-in-js-linting
+		(flymake-stylelint-enable))
 	(when tsx-mode-enable-folding
 		(define-key tsx-mode-map
 								(kbd "C-c t f")
