@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 4.1.0
+;;; Version: 4.1.1
 
 ;;; Author: Dan Orzechowski
 
@@ -291,11 +291,22 @@
 	(or (tsx-mode/capf-css)))
 
 (defun tsx-mode/eglot-managed-mode-hook ()
-	"Internal function.  Override some things which `eglot-ensure' does for us, to
-   preserve awareness of embedded treesit regions."
+	"Internal function.  Override or enhance some things which `eglot-ensure' does
+for us."
 	(setq-local eglot-code-action-indications '(margin))
 	(add-to-list 'completion-at-point-functions
-							 #'tsx-mode/capf))
+							 #'tsx-mode/capf)
+	;; eglot sets `flymake-diagnostic-functions' to a fixed list, ignoring anything
+	;; which was previously there.  but we don't want to set `eglot-stay-out-of'
+	;; here since that would disable the reporting of LSP diagnostics
+	;; TODO: DRY this up - currently we check for lint features here as well as in
+	;; the call to `define-derived-mode' directly
+	(when tsx-mode-enable-js-linting
+		(add-to-list 'flymake-diagnostic-functions
+								 #'flymake-eslint--checker))
+	(when tsx-mode-enable-css-in-js-linting
+		(add-to-list 'flymake-diagnostic-functions
+								 #'flymake-stylelint--checker)))
 
 (defun tsx-mode/coverage-find-clover (buffer-file-dir buffer-file-name)
 	(let ((clover-file-path (concat (locate-dominating-file buffer-file-dir
@@ -335,11 +346,17 @@
 																						 tsx-mode/css-queries
 																						 '())))
 	(add-hook 'post-command-hook
-						#'tsx-mode/post-command-hook nil t)
+						#'tsx-mode/post-command-hook
+						nil
+						t)
 	;; tell project.el how to find non-vc projects, and to ignore contents of any
 	;; node_modules directories
 	(setq-local
 	 project-vc-ignores '("node_modules"))
+	;; this is a slight abuse of this variable but it makes `project-find-file' go
+	;; way faster
+	(add-to-list 'vc-directory-exclusion-list "node_modules")
+	;; helper function to let project.el use package.json as the root of a project
 	(add-to-list (make-local-variable 'project-find-functions)
 							 (lambda (dir)
 								 (when-let* ((package-json-dir (locate-dominating-file dir "package.json")))
@@ -354,10 +371,18 @@
 		;; (push `(css-in-js (text "\\(?:comment\\)" 'symbols))
 		;; 			treesit-thing-settings)
 			(treesit-update-ranges))
-	(when tsx-mode-enable-lsp
-		(add-hook 'eglot-managed-mode-hook
-							#'tsx-mode/eglot-managed-mode-hook nil t)
-		(eglot-ensure))
+	(if tsx-mode-enable-lsp
+			(progn
+				(add-hook 'eglot-managed-mode-hook
+									#'tsx-mode/eglot-managed-mode-hook nil t)
+				(eglot-ensure))
+		(when tsx-mode-enable-js-linting
+			(flymake-eslint-enable))
+		(when (and (featurep 'flymake-stylelint)
+							 tsx-mode-enable-css-in-js-linting)
+			(require 'flymake-stylelint)
+			(flymake-stylelint-enable)))
+
 	(when tsx-mode-enable-coverage
 		(add-to-list 'cov-coverage-file-paths
 								 #'tsx-mode/coverage-find-clover)
@@ -365,10 +390,6 @@
 								 #'tsx-mode/coverage-find-lcov)
 		(setq-local cov-coverage-mode t)
 		(cov-mode t))
-	(when tsx-mode-enable-js-linting
-		(flymake-eslint-enable))
-	(when tsx-mode-enable-css-in-js-linting
-		(flymake-stylelint-enable))
 	(when tsx-mode-enable-folding
 		(define-key tsx-mode-map
 								(kbd "C-c t f")
