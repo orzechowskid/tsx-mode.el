@@ -16,7 +16,7 @@
 
 ```
 (use-package tsx-mode
-	:straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30"))
+  :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30"))
 ```
 
 complete instructions: [click here](https://github.com/orzechowskid/tsx-mode.el/tree/emacs30)
@@ -25,7 +25,7 @@ complete instructions: [click here](https://github.com/orzechowskid/tsx-mode.el/
 
 ```
 (use-package tsx-mode
-	:straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs29"))
+  :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs29"))
 ```
 
 complete instructions: [click here](https://github.com/orzechowskid/tsx-mode.el/tree/emacs29)
@@ -34,7 +34,7 @@ complete instructions: [click here](https://github.com/orzechowskid/tsx-mode.el/
 
 ```
 (use-package tsx-mode
-	:straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs28"))
+  :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs28"))
 ```
 
 complete instructions: [click here](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28)
