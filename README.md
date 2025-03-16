@@ -24,6 +24,8 @@ this branch of code is intended for emacs version 30 or newer.  this branch is a
  - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
  - [`cov`](https://github.com/AdamNiederer/cov)
 
+if you wish to enable linting for CSS-in-JS template literals then you will also need to install [https://github.com/orzechowskid/flymake-stylelint](https://github.com/orzechowskid/flymake-stylelint) (not on MELPA yet).
+
 ### Download
 
 download this package and place the .el file from it in a directory on your load-path.
