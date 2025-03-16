@@ -8,12 +8,12 @@
 - syntax highlighting
 - indentation
 - code folding
-- syntax highlighting, indentation, and code completion for CSS-in-JS tagged template strings
+- syntax highlighting, indentation, code completion, and linting (experimental) for CSS-in-JS tagged template strings
 - code-coverage indicators (experimental)
 
 ## Installation
 
-this branch of code is intended for emacs version 30 or newer.  this branch is also the active development branch; code is subject to change and breakage.
+this branch of code is intended for emacs version 30 or newer.  this branch is also the active development branch; code is subject to change and breakage.  this branch is also the branch I use as my daily driver, so hopefully all changes are helpful and all breakage is minimal!
 
 - support for emacs version 29 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs29](https://github.com/orzechowskid/tsx-mode.el/tree/emacs29).
 - support for emacs versions 27 and 28 can be found here: [https://github.com/orzechowskid/tsx-mode.el/tree/emacs28](https://github.com/orzechowskid/tsx-mode.el/tree/emacs28).
