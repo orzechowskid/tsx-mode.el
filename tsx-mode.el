@@ -330,25 +330,27 @@ for us."
 	tsx-mode tsx-ts-mode "TSX"
 	"A batteries-included major mode for TSX and friends."
 	:group 'tsx-mode
-	(unless (treesit-ready-p 'css-in-js)
-		(error "CSS-in-JS parser not ready"))
 	(setq-local
-	 treesit-primary-parser (treesit-parser-create 'tsx)
-	 treesit-language-at-point-function #'tsx-mode/language-at-point-function
-	 treesit-range-settings (apply #'treesit-range-rules
-																 (seq-reduce (lambda (acc el)
-																							 (append acc
-																											 (list :host 'tsx
-																														 :embed 'css-in-js
-																														 :offset '(1 . -1)
-																														 :local t
-																														 el)))
-																						 tsx-mode/css-queries
-																						 '())))
-	(add-hook 'post-command-hook
-						#'tsx-mode/post-command-hook
-						nil
-						t)
+	 treesit-primary-parser (treesit-parser-create 'tsx))
+	(when tsx-mode-enable-css-in-js
+		(unless (treesit-ready-p 'css-in-js)
+			(error "CSS-in-JS parser not ready"))
+		(setq-local
+		 treesit-language-at-point-function #'tsx-mode/language-at-point-function
+		 treesit-range-settings (apply #'treesit-range-rules
+																	 (seq-reduce (lambda (acc el)
+																								 (append acc
+																												 (list :host 'tsx
+																															 :embed 'css-in-js
+																															 :offset '(1 . -1)
+																															 :local t
+																															 el)))
+																							 tsx-mode/css-queries
+																							 '())))
+		(add-hook 'post-command-hook
+							#'tsx-mode/post-command-hook
+							nil
+							t))
 	;; tell project.el how to find non-vc projects, and to ignore contents of any
 	;; node_modules directories
 	(setq-local
@@ -371,17 +373,16 @@ for us."
 		;; (push `(css-in-js (text "\\(?:comment\\)" 'symbols))
 		;; 			treesit-thing-settings)
 			(treesit-update-ranges))
-	(if tsx-mode-enable-lsp
-			(progn
-				(add-hook 'eglot-managed-mode-hook
-									#'tsx-mode/eglot-managed-mode-hook nil t)
-				(eglot-ensure))
-		(when tsx-mode-enable-js-linting
-			(flymake-eslint-enable))
-		(when (and (featurep 'flymake-stylelint)
-							 tsx-mode-enable-css-in-js-linting)
-			(require 'flymake-stylelint)
-			(flymake-stylelint-enable)))
+	(when tsx-mode-enable-lsp
+		(add-hook 'eglot-managed-mode-hook
+							#'tsx-mode/eglot-managed-mode-hook nil t)
+		(eglot-ensure))
+	(when tsx-mode-enable-js-linting
+		(flymake-eslint-enable))
+	(when (and (featurep 'flymake-stylelint)
+						 tsx-mode-enable-css-in-js-linting)
+		(require 'flymake-stylelint)
+		(flymake-stylelint-enable))
 
 	(when tsx-mode-enable-coverage
 		(add-to-list 'cov-coverage-file-paths
