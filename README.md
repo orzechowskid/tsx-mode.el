@@ -6,10 +6,11 @@
 ## Features
 - code analysis and completion via eglot
 - syntax highlighting
+- linting
 - indentation
 - code folding
-- syntax highlighting, indentation, code completion, and linting (experimental) for CSS-in-JS tagged template strings
-- code-coverage indicators (experimental)
+- code-coverage overlays
+- syntax highlighting, indentation, code completion, and linting (experimental) for CSS-in-JS tagged template strings (experimental)
 
 ## Installation
 
@@ -20,11 +21,14 @@ this branch of code is intended for emacs version 30 or newer.  this branch is a
 
 ### Dependencies
 
- - Emacs 30 or newer, compiled with treesit support
- - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
- - [`cov`](https://github.com/AdamNiederer/cov)
+- Emacs 30 or newer, compiled with treesit support
 
-if you wish to enable linting for CSS-in-JS template literals then you will also need to install [https://github.com/orzechowskid/flymake-stylelint](https://github.com/orzechowskid/flymake-stylelint) (not on MELPA yet).
+You may also need to install the following packages depending on which tsx-mode features you enable:
+
+- [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
+- [`flymake-eslint`](https://github.com/orzechowskid/flymake-eslint)
+- [`flymake-stylelint`](https://github.com/orzechowskid/flymake-stylelint)
+- [`cov`](https://github.com/AdamNiederer/cov)
 
 ### Download
 
@@ -49,7 +53,7 @@ download this package and place the .el file from it in a directory on your load
 `(add-to-list 'auto-mode-alist '("\\.[jt]s[x]?\\'" . tsx-mode)`
 
 > [!TIP]
-> all of these steps, plus others, can be combined into a single step if you use `straight.el` with emacs' own `use-package`:
+> all of these steps, plus others, can be combined into a single step if you use `straight.el` with emacs' own `use-package`.  you will need a form similar to this:
 ```
 (use-package tsx-mode
   :straight '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el" :branch "emacs30")
@@ -68,10 +72,36 @@ all tsx-mode keybindings live under the `C-c t` prefix.
 | `C-c t f` | `treesit-fold-toggle`      | toggle code-folding for current region |
 | `C-c t F` | `treesit-fold-open-all`    | toggle code-folding for all regions    |
 | `C-c t x` | `eglot-code-actions`       | perform an LSP code action at point    |
+| `C-c t !` | `flymake-goto-next-error`  | moves point to the next flymake error  |
+
+Individual dependencies may also have their own keybindings; please see their respective documentation.
 
 ## Configuration
 
+### Package configuration
+
 Useful variables are members of the `tsx-mode` customization group and can be viewed and modified with the command `M-x customize-group [RET] tsx-mode [RET]`.
+
+Individual dependencies may also have their own configuration options; please see their respective documentation.
+
+### Playbooks
+
+While tsx-mode can enable and configure certain dependencies for you, there are things which you must provide yourself based on your current buffer, project, and source repository.  Here are some examples showing how to perform some common actions:
+
+#### Locate and apply an .lcov code-coverage file
+
+```lisp
+(add-hook 'tsx-mode-hook
+          (lambda ()
+		    (when-let* ((buffer-file-name (buffer-file-name)
+			            (project-root (locate-dominating-file buffer-file-name
+                                                              "package.json"))))
+              (setq cov-lcov-project-root project-root
+			        cov-lcov-file-name (file-name-concat project-root
+					                                     "coverage"
+														 "lcov.info"))
+              (cov-update))))
+```
 
 
 ## License

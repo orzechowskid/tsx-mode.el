@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 4.1.1
+;;; Version: 4.2.0
 
 ;;; Author: Dan Orzechowski
 
@@ -20,10 +20,6 @@
 (require 'css-mode)
 (require 'eglot)
 (require 'treesit)
-
-(require 'cov)
-(require 'flymake-eslint)
-(require 'treesit-fold)
 
 
 (defcustom tsx-mode-enable-css-in-js
@@ -53,6 +49,14 @@
 (defcustom tsx-mode-enable-lsp
 	t
 	"Enable or disable LSP support with eglot (and typescript-language-server).")
+
+(defcustom tsx-mode-enable-linting
+	t
+	"Enable or disable linting with ESLint.")
+
+(defcustom tsx-mode-enable-code-coverage
+	nil
+	"Enable or disable code-coverage annotations.")
 
 
 (defvar-local tsx-mode/current-range
@@ -324,73 +328,95 @@ for us."
 		(when (file-exists-p lcov-file-path)
 			(cons lcov-file-path 'lcov))))
 
+(defun tsx-mode/enable-js-linting ()
+	"Internal function.  Enables JS/TS linting and configures a key command."
+	(require 'flymake-eslint)
+	(flymake-eslint-enable)
+	(define-key tsx-mode-map
+							(kbd "C-c t !")
+							#'flymake-goto-next-error))
+
+(defun tsx-mode/enable-css-linting ()
+	"Internal function.  Enables CSS linting and configures a key command."
+	(require 'flymake-stylelint)
+	(flymake-stylelint-enable)
+	(define-key tsx-mode-map
+							(kbd "C-c t !")
+							#'flymake-goto-next-error))
+
+(defun tsx-mode/enable-linting ()
+	"Internal function.  Convenience function to enable linting features."
+	(when tsx-mode-enable-js-linting
+		(tsx-mode/enable-js-linting))
+	(when tsx-mode-enable-css-in-js-linting
+		(tsx-mode/enable-css-linting)))
+
 
 ;;;###autoload
 (define-derived-mode
 	tsx-mode tsx-ts-mode "TSX"
 	"A batteries-included major mode for TSX and friends."
 	:group 'tsx-mode
-	(unless (treesit-ready-p 'css-in-js)
+	(when (and tsx-mode-enable-css-in-js
+						 (not (treesit-ready-p 'css-in-js)))
 		(error "CSS-in-JS parser not ready"))
 	(setq-local
 	 treesit-primary-parser (treesit-parser-create 'tsx)
-	 treesit-language-at-point-function #'tsx-mode/language-at-point-function
-	 treesit-range-settings (apply #'treesit-range-rules
-																 (seq-reduce (lambda (acc el)
-																							 (append acc
-																											 (list :host 'tsx
-																														 :embed 'css-in-js
-																														 :offset '(1 . -1)
-																														 :local t
-																														 el)))
-																						 tsx-mode/css-queries
-																						 '())))
-	(add-hook 'post-command-hook
-						#'tsx-mode/post-command-hook
-						nil
-						t)
-	;; tell project.el how to find non-vc projects, and to ignore contents of any
-	;; node_modules directories
-	(setq-local
+	 ;; tell project.el how to find non-vc projects, and to ignore contents of any
+	 ;; node_modules directories
 	 project-vc-ignores '("node_modules"))
 	;; this is a slight abuse of this variable but it makes `project-find-file' go
 	;; way faster
-	(add-to-list 'vc-directory-exclusion-list "node_modules")
+	(add-to-list (make-local-variable 'vc-directory-exclusion-list)
+							 "node_modules")
 	;; helper function to let project.el use package.json as the root of a project
 	(add-to-list (make-local-variable 'project-find-functions)
 							 (lambda (dir)
 								 (when-let* ((package-json-dir (locate-dominating-file dir "package.json")))
 									 `(transient . ,package-json-dir))))
-	;; conditionally enable some features
 	(when tsx-mode-enable-css-in-js
-		(setq-local treesit-font-lock-settings (append treesit-font-lock-settings
-																									 (apply 'treesit-font-lock-rules
-																													tsx-mode/css-font-lock-rules)))
-		(push tsx-mode/css-indent-rules
-					treesit-simple-indent-rules)
-		;; (push `(css-in-js (text "\\(?:comment\\)" 'symbols))
-		;; 			treesit-thing-settings)
-			(treesit-update-ranges))
+		(setq-local
+		 treesit-language-at-point-function #'tsx-mode/language-at-point-function
+		 treesit-range-settings (apply #'treesit-range-rules
+																	 (seq-reduce (lambda (acc el)
+																								 (append acc
+																												 (list :host 'tsx
+																															 :embed 'css-in-js
+																															 :offset '(1 . -1)
+																															 :local t
+																															 el)))
+																							 tsx-mode/css-queries
+																							 '()))
+		 treesit-font-lock-settings (append treesit-font-lock-settings
+																				(apply 'treesit-font-lock-rules
+																							 tsx-mode/css-font-lock-rules)))
+		(add-hook 'post-command-hook
+							#'tsx-mode/post-command-hook)
+		(progn
+			(push tsx-mode/css-indent-rules
+						treesit-simple-indent-rules)
+			(treesit-update-ranges)))
+
+	;; linting (if enabled) needs to be configured after lsp (if enabled)
 	(if tsx-mode-enable-lsp
 			(progn
 				(add-hook 'eglot-managed-mode-hook
 									#'tsx-mode/eglot-managed-mode-hook nil t)
-				(eglot-ensure))
-		(when tsx-mode-enable-js-linting
-			(flymake-eslint-enable))
-		(when (and (featurep 'flymake-stylelint)
-							 tsx-mode-enable-css-in-js-linting)
-			(require 'flymake-stylelint)
-			(flymake-stylelint-enable)))
+				(eglot-ensure)
+				(tsx-mode/enable-linting))
+		(tsx-mode/enable-linting))
 
 	(when tsx-mode-enable-coverage
+		(require 'cov)
 		(add-to-list 'cov-coverage-file-paths
 								 #'tsx-mode/coverage-find-clover)
 		(add-to-list 'cov-coverage-file-paths
 								 #'tsx-mode/coverage-find-lcov)
 		(setq-local cov-coverage-mode t)
 		(cov-mode t))
+
 	(when tsx-mode-enable-folding
+		(require 'treesit-fold)
 		(define-key tsx-mode-map
 								(kbd "C-c t f")
 								#'treesit-fold-toggle)
