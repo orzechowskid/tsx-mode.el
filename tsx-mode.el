@@ -22,41 +22,55 @@
 (require 'treesit)
 
 
+(defgroup tsx-mode nil
+	"Major mode for JS and friends."
+	:group 'programming
+	:prefix "tsx-mode-")
+
+
 (defcustom tsx-mode-enable-css-in-js
 	t
 	"Conditionally or unconditionally enable or disable tracking of CSS-in-JS
    ranges."
 	:type '(choice (const :tag "Never" nil)
 								 (const :tag "When point is in a range" when-in-range)
-								 (const :tag "Always" t)))
+								 (const :tag "Always" t))
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-js-linting
 	t
-	"Enable or disable lint reports for Javascript/Typescript.")
+	"Enable or disable lint reports for Javascript/Typescript."
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-css-in-js-linting
 	nil
-	"Enable or disable lint reports for CSS-in-JS.  (experimental)")
+	"Enable or disable lint reports for CSS-in-JS.  (experimental)"
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-folding
 	t
-	"Enable or disable code folding for blocks, functions, etc.")
+	"Enable or disable code folding for blocks, functions, etc."
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-coverage
 	nil
-	"Experimental.  Enable or disable code-coverage tools.")
+	"Experimental.  Enable or disable code-coverage tools."
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-lsp
 	t
-	"Enable or disable LSP support with eglot (and typescript-language-server).")
+	"Enable or disable LSP support with eglot (and typescript-language-server)."
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-linting
 	t
-	"Enable or disable linting with ESLint.")
+	"Enable or disable linting with ESLint."
+	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-code-coverage
 	nil
-	"Enable or disable code-coverage annotations.")
+	"Enable or disable code-coverage annotations."
+	:group 'tsx-mode)
 
 
 (defvar-local tsx-mode/current-range
@@ -305,9 +319,9 @@ for us."
 	;; here since that would disable the reporting of LSP diagnostics
 	;; TODO: DRY this up - currently we check for lint features here as well as in
 	;; the call to `define-derived-mode' directly
-	(when tsx-mode-enable-js-linting
-		(add-to-list 'flymake-diagnostic-functions
-								 #'flymake-eslint--checker))
+	;; (when tsx-mode-enable-js-linting
+	;; 	(add-to-list 'flymake-diagnostic-functions
+	;; 							 #'flymake-eslint--checker))
 	(when tsx-mode-enable-css-in-js-linting
 		(add-to-list 'flymake-diagnostic-functions
 								 #'flymake-stylelint--checker)))
@@ -330,8 +344,10 @@ for us."
 
 (defun tsx-mode/enable-js-linting ()
 	"Internal function.  Enables JS/TS linting and configures a key command."
-	(require 'flymake-eslint)
-	(flymake-eslint-enable)
+	;; (require 'flymake-eslint)
+	;; (flymake-eslint-enable)
+	(require 'flymake-jsts)
+	(flymake-jsts-enable)
 	(define-key tsx-mode-map
 							(kbd "C-c t !")
 							#'flymake-goto-next-error))
