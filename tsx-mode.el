@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 4.2.0
+;;; Version: 5.0.0
 
 ;;; Author: Dan Orzechowski
 
@@ -40,36 +40,41 @@
 (defcustom tsx-mode-enable-js-linting
 	t
 	"Enable or disable lint reports for Javascript/Typescript."
+	:type 'boolean
 	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-css-in-js-linting
 	nil
 	"Enable or disable lint reports for CSS-in-JS.  (experimental)"
+	:type 'boolean
 	:group 'tsx-mode)
+
+(make-obsolete-variable tsx-mode-enable-linting
+												"Prefer `tsx-mode-enable-js-linting' or `tsx-mode-enable-css-in-js-linting'"
+												"5.0.0")
 
 (defcustom tsx-mode-enable-folding
 	t
 	"Enable or disable code folding for blocks, functions, etc."
+	:type 'boolean
 	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-coverage
 	nil
 	"Experimental.  Enable or disable code-coverage tools."
+	:type 'boolean
 	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-lsp
 	t
 	"Enable or disable LSP support with eglot (and typescript-language-server)."
-	:group 'tsx-mode)
-
-(defcustom tsx-mode-enable-linting
-	t
-	"Enable or disable linting with ESLint."
+	:type 'boolean
 	:group 'tsx-mode)
 
 (defcustom tsx-mode-enable-code-coverage
 	nil
 	"Enable or disable code-coverage annotations."
+	:type 'boolean
 	:group 'tsx-mode)
 
 
