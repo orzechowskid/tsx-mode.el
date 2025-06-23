@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 5.0.0
+;;; Version: 5.0.1
 
 ;;; Author: Dan Orzechowski
 
@@ -49,7 +49,12 @@
 	:type 'boolean
 	:group 'tsx-mode)
 
-(make-obsolete-variable tsx-mode-enable-linting
+(defcustom tsx-mode-enable-linting
+	t
+	"Enable or disable linting with ESLint."
+	:type 'boolean
+	:group 'tsx-mode)
+(make-obsolete-variable 'tsx-mode-enable-linting
 												"Prefer `tsx-mode-enable-js-linting' or `tsx-mode-enable-css-in-js-linting'"
 												"5.0.0")
 
@@ -352,7 +357,7 @@ for us."
 	;; (require 'flymake-eslint)
 	;; (flymake-eslint-enable)
 	(require 'flymake-jsts)
-	(flymake-jsts-enable)
+	(flymake-jsts-eslint-enable)
 	(define-key tsx-mode-map
 							(kbd "C-c t !")
 							#'flymake-goto-next-error))
