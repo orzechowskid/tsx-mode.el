@@ -1,12 +1,12 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 5.0.1
+;;; Version: 5.0.2
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-eslint "1.7.0"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-jsts "1.1.2"))
 
 ;;; Commentary:
 
@@ -321,20 +321,9 @@
 (defun tsx-mode/eglot-managed-mode-hook ()
 	"Internal function.  Override or enhance some things which `eglot-ensure' does
 for us."
-	(setq-local eglot-code-action-indications '(margin))
-	(add-to-list 'completion-at-point-functions
-							 #'tsx-mode/capf)
-	;; eglot sets `flymake-diagnostic-functions' to a fixed list, ignoring anything
-	;; which was previously there.  but we don't want to set `eglot-stay-out-of'
-	;; here since that would disable the reporting of LSP diagnostics
-	;; TODO: DRY this up - currently we check for lint features here as well as in
-	;; the call to `define-derived-mode' directly
-	;; (when tsx-mode-enable-js-linting
-	;; 	(add-to-list 'flymake-diagnostic-functions
-	;; 							 #'flymake-eslint--checker))
-	(when tsx-mode-enable-css-in-js-linting
-		(add-to-list 'flymake-diagnostic-functions
-								 #'flymake-stylelint--checker)))
+	(when tsx-mode-enable-css-in-js
+		(add-to-list 'completion-at-point-functions
+								 #'tsx-mode/capf)))
 
 (defun tsx-mode/coverage-find-clover (buffer-file-dir buffer-file-name)
 	(let ((clover-file-path (concat (locate-dominating-file buffer-file-dir
@@ -354,8 +343,6 @@ for us."
 
 (defun tsx-mode/enable-js-linting ()
 	"Internal function.  Enables JS/TS linting and configures a key command."
-	;; (require 'flymake-eslint)
-	;; (flymake-eslint-enable)
 	(require 'flymake-jsts)
 	(flymake-jsts-eslint-enable)
 	(define-key tsx-mode-map
