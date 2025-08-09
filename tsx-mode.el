@@ -1,12 +1,12 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 5.0.2
+;;; Version: 5.1.0
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-jsts "1.1.2"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-jsts "1.1.2") (indent-bars "0.9.2"))
 
 ;;; Commentary:
 
@@ -79,6 +79,12 @@
 (defcustom tsx-mode-enable-code-coverage
 	nil
 	"Enable or disable code-coverage annotations."
+	:type 'boolean
+	:group 'tsx-mode)
+
+(defcustom tsx-mode-enable-indent-hints
+	t
+	"Enable or disable indent-outline hints."
 	:type 'boolean
 	:group 'tsx-mode)
 
@@ -345,6 +351,8 @@ for us."
 	"Internal function.  Enables JS/TS linting and configures a key command."
 	(require 'flymake-jsts)
 	(flymake-jsts-eslint-enable)
+	(flymake-jsts-oxlint-enable)
+	(flymake-jsts-biome-enable)
 	(define-key tsx-mode-map
 							(kbd "C-c t !")
 							#'flymake-goto-next-error))
@@ -363,6 +371,11 @@ for us."
 		(tsx-mode/enable-js-linting))
 	(when tsx-mode-enable-css-in-js-linting
 		(tsx-mode/enable-css-linting)))
+
+(defun tsx-mode/enable-some-linting-p ()
+	"Internal function.  Returns t if any linting feature is enabled."
+	(or tsx-mode-enable-js-linting
+			tsx-mode-enable-css-in-js-linting))
 
 
 ;;;###autoload
@@ -409,15 +422,29 @@ for us."
 			(push tsx-mode/css-indent-rules
 						treesit-simple-indent-rules)
 			(treesit-update-ranges)))
+	(when tsx-mode-enable-indent-hints
+		(indent-bars-mode +1))
 
 	;; linting (if enabled) needs to be configured after lsp (if enabled)
-	(if tsx-mode-enable-lsp
-			(progn
-				(add-hook 'eglot-managed-mode-hook
-									#'tsx-mode/eglot-managed-mode-hook nil t)
-				(eglot-ensure)
-				(tsx-mode/enable-linting))
+	(cond
+	 ((and tsx-mode-enable-lsp
+				 (tsx-mode/enable-some-linting-p))
+		(message "linting and lsp enabled")
+		(add-hook 'eglot-managed-mode-hook
+							#'tsx-mode/eglot-managed-mode-hook nil t)
+		(add-hook 'eglot-managed-mode-hook
+							(lambda ()
+								(tsx-mode/enable-linting)))
+		(eglot-ensure))
+	 (tsx-mode-enable-lsp
+		(message "lsp enabled")
+		(add-hook 'eglot-managed-mode-hook
+							#'tsx-mode/eglot-managed-mode-hook nil t)
+		(eglot-ensure))
+	 ((tsx-mode/enable-some-linting-p)
+		(message "linting enabled")
 		(tsx-mode/enable-linting))
+	 (nil t))
 
 	(when tsx-mode-enable-coverage
 		(require 'cov)

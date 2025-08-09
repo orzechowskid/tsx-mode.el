@@ -10,7 +10,8 @@
 - indentation
 - code folding
 - code-coverage overlays
-- syntax highlighting, indentation, code completion, and linting (experimental) for CSS-in-JS tagged template strings (experimental)
+- syntax highlighting, indentation, code completion, and linting for CSS-in-JS tagged template strings (experimental)
+- and more!
 
 ## Installation
 
@@ -26,9 +27,10 @@ this branch of code is intended for emacs version 30 or newer.  this branch is a
 You may also need to install the following packages depending on which tsx-mode features you enable:
 
 - [`treesit-fold`](https://github.com/emacs-tree-sitter/treesit-fold)
-- [`flymake-eslint`](https://github.com/orzechowskid/flymake-eslint)
+- [`flymake-jsts`](https://github.com/orzechowskid/flymake-jsts)
 - [`flymake-stylelint`](https://github.com/orzechowskid/flymake-stylelint)
 - [`cov`](https://github.com/AdamNiederer/cov)
+- [`indent-bars`](https://github.com/jdtsmith/indent-bars)
 
 ### Download
 
