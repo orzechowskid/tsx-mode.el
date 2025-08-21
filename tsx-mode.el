@@ -1,6 +1,6 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 5.1.0
+;;; Version: 5.1.1
 
 ;;; Author: Dan Orzechowski
 
@@ -429,20 +429,20 @@ for us."
 	(cond
 	 ((and tsx-mode-enable-lsp
 				 (tsx-mode/enable-some-linting-p))
-		(message "linting and lsp enabled")
-		(add-hook 'eglot-managed-mode-hook
-							#'tsx-mode/eglot-managed-mode-hook nil t)
-		(add-hook 'eglot-managed-mode-hook
+		(add-hook (make-local-variable 'eglot-managed-mode-hook)
+							#'tsx-mode/eglot-managed-mode-hook
+              nil t)
+		(add-hook (make-local-variable 'eglot-managed-mode-hook)
 							(lambda ()
-								(tsx-mode/enable-linting)))
+								(tsx-mode/enable-linting))
+                nil t)
 		(eglot-ensure))
 	 (tsx-mode-enable-lsp
-		(message "lsp enabled")
-		(add-hook 'eglot-managed-mode-hook
-							#'tsx-mode/eglot-managed-mode-hook nil t)
+		(add-hook (make-local-variable 'eglot-managed-mode-hook)
+							#'tsx-mode/eglot-managed-mode-hook
+              nil t)
 		(eglot-ensure))
 	 ((tsx-mode/enable-some-linting-p)
-		(message "linting enabled")
 		(tsx-mode/enable-linting))
 	 (nil t))
 
