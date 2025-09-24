@@ -1,12 +1,12 @@
 ;;; tsx-mode.el --- a batteries-included major mode for TSX and friends -*- lexical-binding: t -*-
 
-;;; Version: 5.1.1
+;;; Version: 5.2.0
 
 ;;; Author: Dan Orzechowski
 
 ;;; URL: https://github.com/orzechowskid/tsx-mode.el
 
-;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-jsts "1.1.2") (indent-bars "0.9.2"))
+;;; Package-Requires: ((emacs "30.0") (treesit-fold "0.1.0") (cov "0.1.0") (flymake-jsts "1.1.2") (indent-bars "0.9.2") (apheleia "4.4.1")))
 
 ;;; Commentary:
 
@@ -87,6 +87,12 @@
 	"Enable or disable indent-outline hints."
 	:type 'boolean
 	:group 'tsx-mode)
+
+(defcustom tsx-mode-enable-format-on-save
+  nil
+  "Enable or disable formatting of the current buffer when saving to disk."
+  :type 'boolean
+  :group 'tsx-mode)
 
 
 (defvar-local tsx-mode/current-range
@@ -417,7 +423,8 @@ for us."
 																				(apply 'treesit-font-lock-rules
 																							 tsx-mode/css-font-lock-rules)))
 		(add-hook 'post-command-hook
-							#'tsx-mode/post-command-hook)
+							#'tsx-mode/post-command-hook
+              nil t)
 		(progn
 			(push tsx-mode/css-indent-rules
 						treesit-simple-indent-rules)
@@ -466,7 +473,13 @@ for us."
 		(define-key tsx-mode-map
 								(kbd "C-c t x")
 								#'eglot-code-actions)
-		(treesit-fold-mode t)))
+		(treesit-fold-mode t))
+
+  (when tsx-mode-enable-format-on-save
+    (require 'apheleia)
+    (push '(tsx-mode . prettier)
+          apheleia-mode-alist)
+    (apheleia-mode +1)))
 
 ;;;###autoload
 (progn
