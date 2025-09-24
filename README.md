@@ -9,7 +9,7 @@
 - linting
 - indentation
 - code folding
-- code-coverage overlays
+- code-coverage markers
 - syntax highlighting, indentation, code completion, and linting for CSS-in-JS tagged template strings (experimental)
 - and more!
 
@@ -31,6 +31,7 @@ You may also need to install the following packages depending on which tsx-mode 
 - [`flymake-stylelint`](https://github.com/orzechowskid/flymake-stylelint)
 - [`cov`](https://github.com/AdamNiederer/cov)
 - [`indent-bars`](https://github.com/jdtsmith/indent-bars)
+- [`apheleia`](https://github.com/radian-software/apheleia)
 
 ### Download
 
